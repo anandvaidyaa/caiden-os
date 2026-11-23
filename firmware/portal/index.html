@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>CAIDEN OS</title>
+<style>
+:root{--bg:#050a1c;--g1:#1e3fa8;--g2:#3a1f8c;--t:#f3f6ff;--t2:#a7b5da;--t3:#6a7ba8;--a:#3d7bff;--a2:#8a6bff;--h:#3fe0ff;
+--card:rgba(255,255,255,.045);--edge:rgba(255,255,255,.09);--hi:rgba(255,255,255,.14);--field:rgba(0,0,0,.25);--ok:#38e0a0;--bad:#ff5c7a}
+:root[data-th=aurora]{--bg:#08061a;--g1:#5a2dc8;--g2:#0e8c9c;--t:#f6f3ff;--t2:#beb5ea;--t3:#7f77b2;--a:#9a6bff;--a2:#2ee6d6;--h:#7af5e3;--ok:#3eebb0;--bad:#ff5e8a}
+:root[data-th=hypertech]{--bg:#02050b;--g1:#063a55;--g2:#2a1f7a;--t:#e9fbff;--t2:#8db3c6;--t3:#55788a;--a:#00e1ff;--a2:#6f5bff;--h:#4dffc3;--ok:#4dffc3;--bad:#ff4d6d}
+:root[data-th=crystal]{color-scheme:light;--bg:#eef2fb;--g1:#b9ccff;--g2:#d9c9ff;--t:#0d1530;--t2:#3f4c74;--t3:#67749a;--a:#2b5bf0;--a2:#7b4dff;--h:#0aa7cc;
+--card:rgba(255,255,255,.7);--edge:rgba(13,21,48,.09);--hi:rgba(255,255,255,.9);--field:rgba(255,255,255,.8);--ok:#0e9f6e;--bad:#db2f55}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;color:var(--t);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+background:var(--bg);padding:0 16px calc(96px + env(safe-area-inset-bottom));transition:background .4s}
+main{max-width:480px;margin:auto}
+.k{font:600 11px/1.3 ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--t3)}
+.top{display:flex;align-items:center;justify-content:space-between;padding:18px 2px 4px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.32em;font-size:13px}
+.brand i{width:9px;height:9px;border-radius:50%;background:var(--h);box-shadow:0 0 12px var(--h)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;background:var(--card);border:1px solid var(--edge);font-size:12px;color:var(--t2)}
+.pill b{width:6px;height:6px;border-radius:50%;background:var(--ok)}.pill.off b{background:var(--bad)}
+/* hero orbit */
+.hero{position:relative;display:grid;place-items:center;margin:10px 0 4px;height:250px}
+.orbit{position:absolute;width:230px;height:230px}
+.orbit .spin{transform-origin:115px 115px;animation:spin 24s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.face{position:relative;text-align:center}
+.time{font-size:68px;font-weight:200;letter-spacing:-2px;line-height:1;font-variant-numeric:tabular-nums;color:var(--t)}
+.now{margin-top:10px;color:var(--t2);font-size:13px}.now b{color:var(--t);font-weight:600}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+/* cards */
+section{display:none;animation:in .35s ease}section.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.card{position:relative;background:var(--card);border:1px solid var(--edge);border-radius:22px;padding:18px;margin:14px 0;
+backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:inset 0 1px 0 var(--hi)}
+.card h2{margin:0 0 4px;font-size:17px;font-weight:600;letter-spacing:-.2px}
+.card p.d{margin:0 0 14px;color:var(--t2);font-size:13px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--edge)}
+.row:first-of-type{border-top:0}.row .n{font-weight:500}.row .s{color:var(--t3);font-size:12px;margin-top:1px}
+.row .v{color:var(--t2);font-variant-numeric:tabular-nums;text-align:right;word-break:break-all}
+/* grid of page tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{border:1px solid var(--edge);background:var(--field);border-radius:16px;padding:12px 10px;text-align:left;color:var(--t);font:inherit;cursor:pointer;transition:.2s}
+.tile svg{width:22px;height:22px;display:block;margin-bottom:8px;stroke:var(--a);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tile span{font-size:13px;font-weight:500}.tile small{display:block;color:var(--t3);font-size:11px}
+.tile.cur{border-color:var(--a);box-shadow:0 0 0 1px var(--a) inset,0 6px 24px -10px var(--a)}
+.tile.dim{opacity:.55}.tile:active{transform:scale(.97)}
+/* themes */
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.th{border:1px solid var(--edge);border-radius:18px;padding:10px;cursor:pointer;background:var(--field);color:var(--t);font:inherit;text-align:left;transition:.2s}
+.th .pv{height:86px;border-radius:12px;position:relative;overflow:hidden;margin-bottom:8px;display:grid;place-items:center}
+.th .pv i{position:absolute;width:62px;height:62px;border-radius:50%;border:3px solid rgba(255,255,255,.12)}
+.th .pv i:after{content:"";position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;border-radius:50%;border:3px solid transparent;border-top-color:var(--c);border-right-color:var(--c);transform:rotate(-20deg)}
+.th .pv em{font-style:normal;font-weight:200;font-size:20px;letter-spacing:-.5px}
+.th b{font-size:13px;font-weight:600}.th small{display:block;color:var(--t3);font-size:11px}
+.th.on{border-color:var(--a);box-shadow:0 0 0 1px var(--a) inset}
+/* controls */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--field);border:1px solid var(--edge);border-radius:14px;padding:4px;gap:4px}
+.seg button{border:0;background:none;color:var(--t2);font:inherit;font-size:13px;padding:9px 4px;border-radius:10px;cursor:pointer}
+.seg button.on{background:var(--a);color:#fff;font-weight:600;box-shadow:0 4px 14px -6px var(--a)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:none;margin:4px 0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--a) var(--p,50%),var(--edge) var(--p,50%))}
+input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--a) var(--p,50%),var(--edge) var(--p,50%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:-9px;border-radius:50%;background:#fff;border:2px solid var(--a);box-shadow:0 2px 10px rgba(0,0,0,.35)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:2px solid var(--a);border-radius:50%;background:#fff}
+.sw{position:relative;width:48px;height:28px;flex:none}.sw input{opacity:0;position:absolute;top:0;left:0;right:0;bottom:0;margin:0;cursor:pointer;z-index:1}
+.sw span{position:absolute;top:0;left:0;right:0;bottom:0;border-radius:99px;background:var(--edge);transition:.2s}
+.sw span:after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.sw input:checked+span{background:var(--a)}.sw input:checked+span:after{transform:translateX(20px)}
+.sw input:disabled+span{opacity:.5}
+label.f{display:block;margin:14px 0 6px}
+input[type=text],input[type=password],select{width:100%;background:var(--field);border:1px solid var(--edge);color:var(--t);border-radius:12px;padding:12px 14px;font:inherit;outline:none}
+input:focus,select:focus{border-color:var(--a)}
+.btn{display:block;width:100%;margin-top:16px;padding:14px;border:0;border-radius:14px;font:600 15px inherit;font-family:inherit;cursor:pointer;
+background:linear-gradient(135deg,var(--a),var(--a2));color:#fff;box-shadow:0 10px 30px -12px var(--a)}
+.btn.ghost{background:var(--field);color:var(--t);border:1px solid var(--edge);box-shadow:none}
+.btn.warn{background:none;border:1px solid var(--bad);color:var(--bad);box-shadow:none}
+.btn:disabled{opacity:.5}
+.btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.btns .btn{margin:0;padding:11px 6px;font-size:13px}
+.big{font-size:44px;font-weight:200;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.1}
+.bar{height:6px;border-radius:6px;background:var(--edge);overflow:hidden;margin-top:10px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--a),var(--h));transition:width .6s}
+.nets{display:grid;gap:6px;margin-top:10px}.net{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;border-radius:12px;background:var(--field);border:1px solid var(--edge);cursor:pointer}
+.net.on{border-color:var(--a)}.net small{color:var(--t3);font-variant-numeric:tabular-nums}
+.hours{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-top:10px}
+/* nav */
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:2px;padding:6px;border-radius:22px;
+background:var(--bg);border:1px solid var(--edge);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 12px 40px -12px rgba(0,0,0,.6);z-index:5}
+nav button{border:0;background:none;color:var(--t3);font:600 10px inherit;font-family:inherit;letter-spacing:.04em;padding:7px 6px 5px;border-radius:16px;cursor:pointer;min-width:52px}
+nav svg{display:block;margin:0 auto 3px;width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--t);background:var(--card);box-shadow:inset 0 0 0 1px var(--a)}
+.toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-80px);padding:10px 16px;border-radius:99px;background:var(--t);color:var(--bg);font-size:13px;font-weight:600;transition:transform .35s;z-index:9}
+.toast.on{transform:translate(-50%,0)}
+.ap nav,.ap .hero,.ap #chips,.locked nav,.locked .hero,.locked #chips{display:none}
+[hidden]{display:none!important}
+@supports (color:color-mix(in srgb,red,red)){
+body{background:radial-gradient(70% 45% at 85% 0,color-mix(in srgb,var(--g1) 70%,transparent),transparent 70%),
+radial-gradient(60% 40% at 0 30%,color-mix(in srgb,var(--g2) 45%,transparent),transparent 70%),var(--bg);background-attachment:fixed}
+.time{background:linear-gradient(180deg,var(--t),color-mix(in srgb,var(--t) 55%,var(--a)));-webkit-background-clip:text;background-clip:text;color:transparent}
+nav{background:color-mix(in srgb,var(--bg) 70%,transparent)}
+nav button.on{background:color-mix(in srgb,var(--a) 22%,transparent);box-shadow:none}}
+.welcome{padding:34px 4px 4px}.welcome h1{font-size:32px;font-weight:300;letter-spacing:-.6px;margin:10px 0 6px}
+.fr{display:grid;grid-template-columns:96px 1fr;gap:8px;margin-top:10px}.fr .w{grid-column:1/-1}.fr input,.fr select{margin:0}.mr{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.mr input{margin:0}.note{color:var(--t3);font-size:13px;margin-top:8px}.mr .note{margin:0;align-self:center}.pill[hidden]{display:none}
+/* ---- CAIDEN OS 3 "Atelier": one hero, quiet labels, hairlines over boxes, light that carries meaning */
+body{font-size:15px;letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+.top{padding:22px 2px 0}.brand{font-size:12px;letter-spacing:.42em;color:var(--t2)}.brand i{width:7px;height:7px}
+.pill{padding:6px 11px;background:transparent;border-color:var(--edge);font-size:11.5px;letter-spacing:.02em}
+.hero{height:280px;margin:6px 0 0}.orbit{width:256px;height:256px}
+.time{font-size:88px;font-weight:100;letter-spacing:-4px}
+.now{margin-top:14px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--t3)}.now b{letter-spacing:.06em}
+.chips{gap:6px;margin-bottom:18px}
+.card{border-radius:28px;padding:22px 20px;margin:12px 0;background:linear-gradient(180deg,var(--card),transparent 140%);
+box-shadow:inset 0 1px 0 var(--hi),0 24px 48px -32px rgba(0,0,0,.55)}
+.card h2{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--t2);margin:0 0 8px}
+.card h2:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--h);box-shadow:0 0 10px var(--h);flex:none}
+.card p.d{font-size:13.5px;line-height:1.5;color:var(--t3);margin:0 0 16px}
+.row{padding:14px 0}.row .n{font-weight:500;letter-spacing:-.01em}
+.big{font-size:64px;font-weight:100;letter-spacing:-2.5px;line-height:1.05;margin:4px 0 2px}
+.tiles{gap:8px}
+.tile{border-radius:20px;padding:14px 12px 12px;background:transparent;transition:transform .2s,border-color .2s,background .2s}
+.tile svg{width:30px;height:30px;padding:6px;margin-bottom:10px;border-radius:50%;background:var(--field);stroke:var(--h)}
+.tile.cur{background:var(--card);border-color:var(--a)}
+.th{border-radius:22px;background:transparent}.th .pv{height:96px;border-radius:16px}
+.seg{border-radius:16px;background:transparent}.seg button{border-radius:12px;padding:10px 4px;letter-spacing:.01em}
+input[type=text],input[type=password],select{border-radius:14px;padding:13px 15px;background:transparent}
+label.f{font-size:10.5px}
+.btn{border-radius:16px;padding:15px;letter-spacing:.01em;transition:transform .15s,filter .2s}.btn:active{transform:scale(.98)}
+.btn.ghost{background:transparent}
+.net{background:transparent;border-radius:14px}
+nav{gap:0;padding:6px;border-radius:26px}
+nav button{position:relative;border-radius:20px;padding:8px 6px 7px;letter-spacing:.06em;transition:color .2s}
+nav button.on:after{content:"";position:absolute;left:50%;bottom:2px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--h);box-shadow:0 0 8px var(--h)}
+section.on .card{animation:rise .5s cubic-bezier(.2,.7,.2,1) both}
+section.on .card:nth-child(2){animation-delay:.05s}section.on .card:nth-child(3){animation-delay:.1s}
+section.on .card:nth-child(4){animation-delay:.15s}section.on .card:nth-child(n+5){animation-delay:.2s}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+@supports (color:color-mix(in srgb,red,red)){
+body{background:radial-gradient(80% 50% at 90% -5%,color-mix(in srgb,var(--g1) 80%,transparent),transparent 70%),
+radial-gradient(70% 45% at -10% 35%,color-mix(in srgb,var(--g2) 55%,transparent),transparent 70%),
+radial-gradient(60% 40% at 100% 100%,color-mix(in srgb,var(--a2) 18%,transparent),transparent 70%),var(--bg);background-attachment:fixed}
+.card{background:linear-gradient(180deg,color-mix(in srgb,var(--card) 100%,var(--a) 3%),transparent 160%)}
+.tile.cur{background:color-mix(in srgb,var(--a) 14%,transparent);box-shadow:0 10px 30px -14px var(--a)}
+.tile svg{background:color-mix(in srgb,var(--h) 12%,transparent)}
+.seg button.on{background:color-mix(in srgb,var(--a) 85%,transparent)}
+.th.on{background:color-mix(in srgb,var(--a) 10%,transparent)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<main>
+<div class="top"><div class="brand"><i></i>CAIDEN</div><div class="pill" id="link"><b></b><span>Connecting</span></div></div>
+
+<div class="hero" id="hero">
+<svg class="orbit" viewBox="0 0 230 230" aria-hidden="true"><defs><linearGradient id="og" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--a)"/><stop offset="1" stop-color="var(--h)"/></linearGradient></defs>
+<circle cx="115" cy="115" r="104" fill="none" stroke="var(--edge)" stroke-width="2"/>
+<circle cx="115" cy="115" r="88" fill="none" stroke="var(--edge)" stroke-width="1" stroke-dasharray="2 6"/>
+<g class="spin"><circle cx="115" cy="115" r="104" fill="none" stroke="url(#og)" stroke-width="3" stroke-linecap="round" stroke-dasharray="150 504"/>
+<circle cx="219" cy="115" r="5" fill="var(--h)" style="filter:drop-shadow(0 0 6px var(--h))"/></g></svg>
+<div class="face"><div class="time" id="time">--:--</div><div class="now">Showing <b id="cur">—</b></div></div>
+</div>
+<div class="chips" id="chips"><span class="pill" id="cWifi">Wi-Fi —</span><span class="pill" id="cBridge"><b></b>Bridge</span><span class="pill" id="cFw">—</span><span class="pill" id="cAlert" hidden style="color:var(--warn,#ffb020)"></span></div>
+
+<!-- ============ lock (password set, this browser not logged in) -->
+<section id="lock">
+<div class="welcome"><div class="k">Locked</div><h1>Enter the password.</h1><p style="color:var(--t2);margin:0">It is on the clock's System screen, under Password.</p></div>
+<div class="card"><label class="f k" for="lpw">Password</label><input type="text" id="lpw" autocomplete="off" autocapitalize="none" spellcheck="false">
+<button class="btn" id="lgo">Unlock</button><button class="btn ghost" id="lshow">Show it on the clock</button><p class="note" id="lnote"></p></div>
+</section>
+
+<!-- ============ setup (setup network only) -->
+<section id="setup">
+<div class="welcome"><div class="k">Setup</div><h1>Welcome to CAIDEN.</h1><p style="color:var(--t2);margin:0">Pick your Wi-Fi and city. The clock restarts and joins your network.</p></div>
+<div class="card"><h2>Wi-Fi network</h2><div class="nets" id="nets0"><div class="k">Scanning…</div></div>
+<label class="f k" for="ssid0">Network name</label><input type="text" id="ssid0" autocomplete="off" autocapitalize="none">
+<label class="f k" for="pass0">Password</label><input type="password" id="pass0" placeholder="Unchanged if empty"></div>
+<div class="card"><h2>Location</h2><label class="f k" for="city0">City</label><input type="text" id="city0">
+<label class="f k" for="tz0">Time zone</label><select id="tz0"></select>
+<button class="btn" id="save0">Save &amp; connect</button></div>
+</section>
+
+<!-- ============ home -->
+<section id="home">
+<div class="card"><h2>Show on the clock</h2><p class="d">Tap a page to show it now. The clock returns to its rotation after the time set under Pages.</p>
+<div class="tiles" id="tiles"></div></div>
+<div class="card" id="focusMini" hidden><div class="k">Focus</div><div class="big" id="fmBig">--:--</div><div class="bar"><i id="fmBar"></i></div></div>
+</section>
+
+<!-- ============ display -->
+<section id="display">
+<div class="card"><h2>Theme</h2><p class="d">Changes the clock and this page instantly.</p><div class="themes" id="themes"></div></div>
+<div class="card"><h2>Light</h2>
+<div class="row" style="display:block"><div style="display:flex;justify-content:space-between"><span class="n">Brightness</span><span class="v" id="vBright"></span></div><input type="range" id="bright" min="5" max="100" step="1"></div>
+<div class="row" style="display:block"><div style="display:flex;justify-content:space-between"><span class="n">Ambient glow</span><span class="v" id="vGlow"></span></div><input type="range" id="glow" min="0" max="150" step="5">
+<div class="s">The soft coloured light behind each dashboard.</div></div></div>
+<div class="card"><h2>Clock format</h2><div class="seg" id="fmt" style="margin-top:10px"><button data-v="0">12-hour</button><button data-v="1">24-hour</button></div></div>
+</section>
+
+<!-- ============ pages -->
+<section id="pages">
+<div class="card"><h2>Rotation</h2><p class="d">How long each dashboard stays. Home stays twice as long.</p>
+<div class="seg" id="rot"><button data-v="0">Off</button><button data-v="10">10 s</button><button data-v="20">20 s</button><button data-v="30">30 s</button><button data-v="60">1 min</button></div></div>
+<div class="card"><h2>Timing</h2><p class="d">How long each news headline stays on the News page.</p>
+<div class="seg" id="story"><button data-v="6">6 s</button><button data-v="9">9 s</button><button data-v="12">12 s</button><button data-v="15">15 s</button><button data-v="20">20 s</button></div>
+<p class="d" style="margin-top:16px">When you pick a page here or on the Home tab, it stays this long before the rotation continues.</p>
+<div class="seg" id="hold"><button data-v="1">1 min</button><button data-v="2">2 min</button><button data-v="5">5 min</button><button data-v="10">10 min</button><button data-v="30">30 min</button></div></div>
+<div class="card"><h2>Dashboards</h2><p class="d">Choose what the rotation includes. Pages with data from the cloud relay (news, markets, quote, cricket) join once their data arrives.</p><div id="toggles"></div></div>
+<div class="card"><div class="row" style="padding-top:0"><div><div class="n">Night screensaver</div><div class="s">A dim clock during these hours.</div></div><label class="sw"><input type="checkbox" id="nightOn"><span></span></label></div>
+<div class="hours" id="hours"><select id="nf"></select><span class="k">to</span><select id="nt"></select></div></div>
+</section>
+
+<!-- ============ feeds (stored on the clock, sent to the cloud relay with each request) -->
+<section id="feeds">
+<div class="card"><h2>Cloud relay</h2><p class="d">News, markets, quote, cricket and Spotify come through your free Cloudflare worker (see the relay folder). Paste its address here.</p>
+<input type="text" id="rh" placeholder="caiden-relay.yourname.workers.dev" autocapitalize="none"><p class="note" id="rlNote"></p><button class="btn ghost" id="saveRh">Save relay</button></div>
+<div class="card"><h2>News</h2><p class="d">Up to 3 tabs. Each is a topic or a search (for example your city). The 8 headlines are shared between them.</p>
+<div id="feedRows"></div>
+<label class="f k" for="nAge">Skip stories older than</label><select id="nAge"></select>
+<button class="btn" id="saveNews">Save news</button></div>
+<div class="card"><h2>Markets</h2><p class="d">Yahoo Finance symbols, e.g. ^NSEI, RELIANCE.NS, INFY.NS, AAPL. Up to 4, plus Bitcoin.</p>
+<div id="mkRows"></div>
+<div class="row"><div><div class="n">Bitcoin (INR)</div></div><label class="sw"><input type="checkbox" id="btc"><span></span></label></div>
+<button class="btn" id="saveMk">Save markets</button></div>
+<div class="card"><h2>Cricket</h2><label class="f k" for="team">Follow matches of</label><input type="text" id="team" placeholder="India" maxlength="24">
+<p class="note">Live scores come free from Cricinfo. An optional cricketdata.org key (CRICKET_KEY on the relay) adds overs and match status.</p><button class="btn" id="saveCr">Save cricket</button></div>
+</section>
+
+<!-- ============ focus -->
+<section id="focus">
+<div class="card"><div class="k" id="pPhase">Pomodoro</div><div class="big" id="pTime">25:00</div><div class="s" id="pSub" style="color:var(--t3)">4 × 25 min focus, 5 min breaks</div>
+<div class="bar"><i id="pBar" style="width:0"></i></div>
+<div class="btns"><button class="btn" data-f="pomo" id="pStart">Start</button><button class="btn ghost" data-f="pause" id="pPause">Pause</button><button class="btn ghost" data-f="reset">Reset</button></div></div>
+<div class="card"><div class="k">Timer</div><div class="big" id="cTime">--:--</div>
+<div class="btns"><button class="btn ghost" data-f="cd" data-s="60">1 min</button><button class="btn ghost" data-f="cd" data-s="300">5 min</button><button class="btn ghost" data-f="cd" data-s="600">10 min</button>
+<button class="btn ghost" data-f="cd" data-s="900">15 min</button><button class="btn ghost" data-f="cd" data-s="1800">30 min</button><button class="btn warn" data-f="cdstop">Cancel</button></div></div>
+<div class="card"><div class="k">Stopwatch</div><div class="big" id="sTime">0:00</div>
+<div class="btns"><button class="btn ghost" data-f="sw">Start</button><button class="btn ghost" data-f="swstop">Stop</button><button class="btn ghost" data-f="swreset">Reset</button></div></div>
+<div class="card"><div class="row" style="padding:0"><span class="n">Focused today</span><span class="v" id="today">0 min</span></div></div>
+</section>
+
+<!-- ============ system -->
+<section id="system">
+<div class="card"><h2>Device</h2><div id="info"></div></div>
+<div class="card"><h2>Firmware update</h2><p class="d" id="updNote">Updates come through the cloud relay, on any Wi-Fi.</p>
+<button class="btn" id="updInstall" hidden>Install update</button><button class="btn ghost" id="updCheck">Check for update</button></div>
+<div class="card"><h2>Password</h2><p class="d">The clock made it and shows it on its System screen. Other phones and computers need it once to open this page.</p>
+<button class="btn ghost" id="pwShow">Show it on the clock</button><button class="btn ghost" id="pwNew">Make a new password</button><button class="btn ghost" id="pwOut">Log out of this browser</button></div>
+<div class="card"><h2>Location &amp; time</h2><label class="f k" for="city">City (weather &amp; air quality)</label><input type="text" id="city">
+<label class="f k" for="tz">Time zone</label><select id="tz"></select><button class="btn" id="saveLoc">Save &amp; restart</button></div>
+<div class="card"><h2>Wi-Fi</h2><p class="d" id="wifiNow"></p><button class="btn ghost" id="scan">Change network</button>
+<div id="wifiBox" hidden><div class="nets" id="nets1"></div><label class="f k" for="ssid1">Network name</label><input type="text" id="ssid1" autocomplete="off" autocapitalize="none">
+<label class="f k" for="pass1">Password</label><input type="password" id="pass1"><button class="btn" id="saveWifi">Save &amp; restart</button></div></div>
+<div class="card"><h2>Restart</h2><p class="d">Restarts the clock. Settings are kept.</p><button class="btn warn" id="restart">Restart CAIDEN</button></div>
+</section>
+</main>
+
+<nav id="nav"></nav>
+<div class="toast" id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const I={home:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/>',weather:'<path d="M7 18h10a4 4 0 0 0 .5-8 6 6 0 0 0-11.4 1.6A3.3 3.3 0 0 0 7 18z"/>',
+air:'<path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',spotify:'<circle cx="7" cy="17" r="3"/><path d="M10 17V5l10-2v12"/><circle cx="17" cy="15" r="3"/>',
+markets:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',news:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>',
+calendar:'<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>',world:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+focus:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/>',cricket:'<circle cx="16" cy="16" r="4"/><path d="M4 4l9 9M3 6l3-3"/>',system:'<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
+sun:'<circle cx="12" cy="14" r="4"/><path d="M3 19h18M12 4v3M5 8l2 2M19 8l-2 2"/>',quote:'<path d="M7 17c-2 0-3-1.5-3-3.5S5.5 9 9 7M16 17c-2 0-3-1.5-3-3.5S14.5 9 18 7"/>',speed:'<path d="M4 17a8 8 0 1 1 16 0M12 17l4-5"/>',lan:'<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7l-6 10M12 7l6 10"/>',
+display:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/>',pages:'<rect x="3" y="4" width="8" height="7" rx="2"/><rect x="13" y="4" width="8" height="7" rx="2"/><rect x="3" y="13" width="8" height="7" rx="2"/><rect x="13" y="13" width="8" height="7" rx="2"/>'};
+const svg=n=>'<svg viewBox="0 0 24 24">'+I[n]+'</svg>';
+// PAGES order in firmware (bit = index); system is a manual page only
+const PG=[['home','Home','Time & orbit'],['spotify','Spotify','Now playing'],['focus','Focus','Pomodoro & timers'],['cricket','Cricket','During India matches'],
+['weather','Weather','Forecast'],['air','Air quality','NAQI & PM'],['calendar','Calendar','Next events'],['world','World clock','4 cities'],['markets','Markets','NIFTY, SENSEX, BTC'],['news','News','Headlines'],
+['sun','Sun & Moon','Daylight, moon phase'],['quote','Quote','Quote of the day'],['speed','Connection','removed'],['lan','Network','Devices online']];
+const TH=[['midnight','Midnight Luxe','Deep blue','#050a1c','#1e3fa8','#3d7bff','#f3f6ff'],['aurora','Aurora','Violet & teal','#08061a','#5a2dc8','#2ee6d6','#f6f3ff'],
+['crystal','Crystal','Bright & clean','#eef2fb','#b9ccff','#2b5bf0','#0d1530'],['hypertech','Hypertech','Neon cyan','#02050b','#063a55','#00e1ff','#e9fbff']];
+const TZ=[['IST-5:30','India (IST)'],['UTC0','UTC'],['GMT0BST,M3.5.0/1,M10.5.0','London'],['CET-1CEST,M3.5.0,M10.5.0/3','Berlin / Paris'],['<+04>-4','Dubai'],
+['<+08>-8','Singapore'],['JST-9','Tokyo'],['AEST-10AEDT,M10.1.0,M4.1.0/3','Sydney'],['EST5EDT,M3.2.0,M11.1.0','New York'],['PST8PDT,M3.2.0,M11.1.0','Los Angeles']];
+let S=null,busy=0,tab='home',fAt=0;
+const fmt=s=>{s=Math.max(0,s|0);const h=s/3600|0,m=(s%3600)/60|0,x=s%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1800)}
+// login token (X-Caiden-Auth), kept in this browser; /api/login and /api/newpw hand it out
+let TOK='';try{TOK=localStorage.getItem('caidenTok')||''}catch(e){}
+function keepTok(t){TOK=t||'';try{t?localStorage.setItem('caidenTok',t):localStorage.removeItem('caidenTok')}catch(e){}}
+const hdr=()=>({'X-Caiden':'1','X-Caiden-Auth':TOK});
+function post(u,o){return fetch(u,{method:'POST',headers:hdr(),body:new URLSearchParams(o)}).then(r=>{if(r.status==401&&u!='/api/login')poll();return r.json()}).then(r=>{if(!r.ok)throw r;return r})}
+function set(o,msg){busy=Date.now();return post('/api/set',o).then(()=>{toast(msg||'Saved');poll()}).catch(()=>toast('Could not save'))}
+function seg(id,v){$$(id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v==String(v)))}
+function tzSel(sel,v){if(![...sel.options].some(o=>o.value==v)){const o=document.createElement('option');o.value=v;o.textContent='Current ('+v+')';sel.appendChild(o)}sel.value=v}
+function opts(sel,list,v){sel.innerHTML=list.map(([a,b])=>'<option>'+'</option>').join('');[...sel.options].forEach((o,i)=>{o.value=list[i][0];o.textContent=list[i][1]});if(v!=null)sel.value=v}
+function range(el,out,suffix){const p=()=>{busy=Date.now();const v=+el.value;el.style.setProperty('--p',((v-el.min)/(el.max-el.min)*100)+'%');out.textContent=v+suffix};el.oninput=p;return p}
+// ---- build static UI
+const NAV=[['home','Home'],['display','Display'],['pages','Pages'],['feeds','Feeds'],['focus','Focus'],['system','System']];
+$('#nav').innerHTML=NAV.map(([k,l])=>'<button data-t="'+k+'">'+svg(k=='feeds'?'news':k)+l+'</button>').join('');
+$$('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.t));
+function show(t){tab=t;if(t=='feeds')loadFeeds();$$('section').forEach(s=>s.classList.toggle('on',s.id==t));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));scrollTo({top:0,behavior:'smooth'})}
+$('#tiles').innerHTML=[...PG,['system','System','Device info']].filter(x=>x[0]!='calendar'&&x[0]!='lan'&&x[0]!='speed').map(([k,n,d])=>'<button class="tile" data-p="'+k+'">'+svg(k)+'<span>'+n+'</span><small>'+d+'</small></button>').join('');
+$$('.tile').forEach(b=>b.onclick=()=>post('/api/page',{name:b.dataset.p}).then(()=>{toast('Showing '+b.querySelector('span').textContent);setTimeout(poll,900)}).catch(()=>toast('Could not reach the clock')));
+$('#themes').innerHTML=TH.map(([k,n,d,bg,g,a,t])=>'<button class="th" data-v="'+k+'"><div class="pv" style="--c:'+a+';color:'+t+';background:radial-gradient(90% 90% at 80% 0,'+g+','+bg+' 70%)"><i></i><em>09:41</em></div><b>'+n+'</b><small>'+d+'</small></button>').join('');
+$$('.th').forEach(b=>b.onclick=()=>{document.documentElement.dataset.th=b.dataset.v;$$('.th').forEach(x=>x.classList.toggle('on',x==b));set({theme:b.dataset.v},'Theme applied')});
+$('#toggles').innerHTML=PG.map((x,i)=>[...x,i]).filter(x=>x[3]&&x[0]!='calendar'&&x[0]!='lan'&&x[0]!='speed').map(([k,n,d,i])=>'<div class="row"><div><div class="n">'+n+'</div><div class="s">'+d+'</div></div><label class="sw"><input type="checkbox" data-b="'+i+'"><span></span></label></div>').join('');
+$$('#toggles input').forEach(c=>c.onchange=()=>{let m=1;$$('#toggles input').forEach(x=>{if(x.checked)m|=1<<x.dataset.b});set({pages:m},c.checked?'Added to rotation':'Removed from rotation')});
+const H=[...Array(24)].map((_,h)=>[String(h),String(h).padStart(2,'0')+':00']);opts($('#nf'),H);opts($('#nt'),H);
+const night=fromToggle=>{const on=$('#nightOn').checked;$('#hours').style.opacity=on?1:.4;$('#nf').disabled=$('#nt').disabled=!on;
+ let f=+$('#nf').value,t=+$('#nt').value;
+ if(on&&f==t){if(!fromToggle){toast('Start and end must differ');return}f=23;t=6;$('#nf').value=f;$('#nt').value=t}
+ set({night:on?f+'-'+t:'0-0'},on?'Screensaver '+$('#nf').selectedOptions[0].text+' to '+$('#nt').selectedOptions[0].text:'Screensaver off')};
+$('#nightOn').onchange=()=>night(1);$('#nf').onchange=$('#nt').onchange=()=>night(0);
+$$('#rot button').forEach(b=>b.onclick=()=>{seg('#rot',b.dataset.v);set({rotate:b.dataset.v},b.dataset.v=='0'?'Rotation off':'Rotation every '+b.textContent)});
+$$('#story button').forEach(b=>b.onclick=()=>{seg('#story',b.dataset.v);set({story:b.dataset.v},'Each headline '+b.textContent)});
+$$('#hold button').forEach(b=>b.onclick=()=>{seg('#hold',b.dataset.v);set({hold:b.dataset.v},'Picked pages stay '+b.textContent)});
+// ---- feeds: stored on the clock (/api/state, /api/set), sent to the relay with each request
+// news "TAB~s~words|TAB~t~TOPIC", markets "SYMBOL~Name|..." (relay/worker.js parseSettings)
+let FD=null;
+const TOPICS=['WORLD','NATION','BUSINESS','TECHNOLOGY','SCIENCE','SPORTS','HEALTH','ENTERTAINMENT'];
+const el=(t,a)=>{const e=document.createElement(t);Object.assign(e,a||{});return e};
+const clean=v=>v.replace(/[|~]/g,' ').trim();
+opts($('#nAge'),[['6','6 hours'],['12','12 hours'],['24','1 day'],['48','2 days'],['168','1 week']]);
+function feedRows(){const box=$('#feedRows');box.innerHTML='';const fs=FD.feeds.slice(0,3);while(fs.length<3)fs.push({tab:'',topic:''});
+ fs.forEach((f,i)=>{const r=el('div',{className:'fr'});const tb=el('input',{type:'text',maxLength:6,placeholder:'Tab '+(i+1),value:f.tab||''});
+  const kind=el('select');[['','(not used)'],['search','Search…'],...TOPICS.map(t=>[t,t[0]+t.slice(1).toLowerCase()])].forEach(([v,n])=>kind.appendChild(el('option',{value:v,textContent:n})));
+  kind.value=f.search?'search':(f.topic||'');const q=el('input',{type:'text',maxLength:40,placeholder:'Search words, e.g. your city',value:f.search||'',className:'w'});
+  const vis=()=>{q.hidden=kind.value!='search';tb.disabled=!kind.value};kind.onchange=()=>{vis();if(!tb.value&&kind.value)tb.value=(kind.value=='search'?'LOCAL':kind.value).slice(0,6)};vis();
+  r.append(tb,kind,q);box.appendChild(r)})}
+function mkRows(){const box=$('#mkRows');box.innerHTML='';const ms=FD.markets.slice(0,4);while(ms.length<4)ms.push({sym:'',name:''});
+ ms.forEach(m=>{const r=el('div',{className:'mr'});r.append(el('input',{type:'text',maxLength:16,placeholder:'Symbol',value:m.sym||'',autocapitalize:'characters'}),
+  el('input',{type:'text',maxLength:12,placeholder:'Name on clock',value:m.name||''}));box.appendChild(r)})}
+function relayNote(s){$('#rlNote').textContent=!s.rh?'Not set: news, markets, quote, cricket and Spotify stay empty.':s.bridge?'Relay answering.'+(s.sps?'':' Spotify is not signed in yet.'):'Relay not answering yet.'}
+function loadFeeds(){if(!S)return;const s=S;
+ FD={feeds:(s.nfd||'').split('|').map(x=>x.split('~')).filter(p=>p.length==3).map(([tab,k,v])=>k=='t'?{tab,topic:v}:{tab,search:v}),
+  markets:(s.mk||'').split('|').map(x=>x.split('~')).filter(p=>p[0]).map(([sym,name])=>({sym,name:name||sym}))};
+ feedRows();mkRows();$('#nAge').value=String(s.nage);if($('#nAge').value!=String(s.nage))$('#nAge').value='24';
+ $('#btc').checked=!!s.btc;$('#team').value=s.team||'';$('#rh').value=s.rh||'';relayNote(s)}
+function fdSave(o,btn,msg){btn.disabled=true;set(o,msg).finally(()=>btn.disabled=false)}
+$('#saveNews').onclick=()=>{const f=[];$$('#feedRows .fr').forEach(r=>{const[tb,k,q]=r.children;if(!k.value)return;
+  const t=(tb.value||k.value).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6)||'NEWS';if(k.value=='search'){if(clean(q.value))f.push(t+'~s~'+clean(q.value))}else f.push(t+'~t~'+k.value)});
+ if(!f.length)return toast('Choose at least one tab');fdSave({feeds:f.join('|'),nage:$('#nAge').value},$('#saveNews'),'News saved. New headlines in a few seconds')};
+$('#saveMk').onclick=()=>{const m=[];$$('#mkRows .mr').forEach(r=>{const[sy,n]=r.children;const v=sy.value.trim().toUpperCase();if(v)m.push(v.replace(/[^A-Z0-9^.=-]/g,'')+'~'+(clean(n.value)||v))});
+ fdSave({mkts:m.join('|'),btc:$('#btc').checked?1:0},$('#saveMk'),'Markets saved')};
+$('#saveCr').onclick=()=>{const v=clean($('#team').value);if(!v)return toast('Type a team name');fdSave({team:v},$('#saveCr'),'Cricket saved')};
+$('#saveRh').onclick=()=>{const v=$('#rh').value.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');$('#rh').value=v;if(v&&!/^[A-Za-z0-9.:-]{4,71}$/.test(v))return toast('Use the worker address, e.g. caiden-relay.yourname.workers.dev');set({relay:v},v?'Relay saved':'Relay cleared')};
+$$('#fmt button').forEach(b=>b.onclick=()=>{seg('#fmt',b.dataset.v);set({h24:b.dataset.v},b.textContent+' clock')});
+const pB=range($('#bright'),$('#vBright'),'%'),pG=range($('#glow'),$('#vGlow'),'%');
+$('#bright').onchange=()=>set({bright:$('#bright').value},'Brightness '+$('#bright').value+'%');
+$('#glow').onchange=()=>set({glow:$('#glow').value},'Glow '+$('#glow').value+'%');
+$$('[data-f]').forEach(b=>b.onclick=()=>{let a=b.dataset.f;if(a=='pause'&&S&&S.f.p&&!S.f.r)a='resume';
+ const o={a:a};if(b.dataset.s)o.s=b.dataset.s;post('/api/focus',o).then(()=>{toast('Sent to the clock');poll()}).catch(()=>toast('Failed'))});
+opts($('#tz'),TZ);opts($('#tz0'),TZ);
+function nets(box,ssid){box.innerHTML='<div class="k">Scanning…</div>';fetch('/api/scan',{method:'POST',headers:hdr()}).then(r=>r.json()).then(l=>{box.innerHTML='';
+ l.sort((a,b)=>b.r-a.r).forEach(w=>{const d=document.createElement('div');d.className='net';d.innerHTML='<span></span><small></small>';d.firstChild.textContent=w.s;
+ d.lastChild.textContent=(w.l?'Locked · ':'Open · ')+(w.r>-60?'Strong':w.r>-72?'Good':w.r>-82?'Weak':'Very weak');
+ d.onclick=()=>{ssid.value=w.s;[...box.children].forEach(x=>x.classList.remove('on'));d.classList.add('on');ssid.nextElementSibling.nextElementSibling.focus()};box.appendChild(d)});
+ if(!l.length)box.innerHTML='<div class="k">No networks found</div>'}).catch(()=>box.innerHTML='')}
+$('#scan').onclick=()=>{$('#wifiBox').hidden=false;$('#scan').hidden=true;$('#ssid1').value=S?S.ssid:'';nets($('#nets1'),$('#ssid1'))};
+function saveAll(o,btn,msg){btn.disabled=true;post('/api/save',o).then(()=>{toast(msg)}).catch(()=>{toast('Could not save');btn.disabled=false})}
+$('#saveLoc').onclick=()=>saveAll({city:$('#city').value,tz:$('#tz').value},$('#saveLoc'),'Saved. Restarting…');
+$('#saveWifi').onclick=()=>{if(!$('#ssid1').value)return toast('Pick a network');saveAll({ssid:$('#ssid1').value,pass:$('#pass1').value},$('#saveWifi'),'Saved. Joining '+$('#ssid1').value+'…')};
+$('#save0').onclick=()=>{if(!$('#ssid0').value)return toast('Pick a network');saveAll({ssid:$('#ssid0').value,pass:$('#pass0').value,city:$('#city0').value,tz:$('#tz0').value},$('#save0'),'Saved. CAIDEN is joining your network.')};
+$('#updCheck').onclick=()=>post('/api/fwcheck',{}).then(()=>{toast('Checking…');setTimeout(poll,6000)}).catch(()=>toast('Could not check'));
+$('#updInstall').onclick=()=>{if(!S||!S.upd)return;if(!confirm('Install CAIDEN OS '+S.upd+' now? The clock downloads it (about a minute), checks it and restarts. Your settings are kept.'))return;
+ post('/api/fwinstall',{}).then(()=>toast('Installing '+S.upd+'… the clock restarts when done')).catch(()=>toast('Update not available'))};
+$('#lgo').onclick=()=>{const b=$('#lgo');b.disabled=true;post('/api/login',{pw:$('#lpw').value.trim()}).then(r=>{keepTok(r.tok);$('#lpw').value='';$('#lnote').textContent='';toast('Unlocked');poll()})
+ .catch(r=>{$('#lnote').textContent=r&&r.lock>0?'Too many wrong passwords. Try again in '+Math.ceil(r.lock/60)+' min.':'Wrong password.'}).finally(()=>b.disabled=false)};
+$('#lpw').onkeydown=e=>{if(e.key=='Enter')$('#lgo').click()};
+const showPw=()=>post('/api/showpw',{}).then(()=>toast('Look at the clock: System, Password')).catch(()=>toast('Could not reach the clock'));
+$('#lshow').onclick=showPw;$('#pwShow').onclick=showPw;
+$('#pwNew').onclick=()=>{if(!confirm('Make a new password? Every other phone and computer is logged out. The new one shows on the clock.'))return;
+ post('/api/newpw',{}).then(r=>{keepTok(r.tok);toast('New password: see the clock')}).catch(()=>toast('Could not make a new password'))};
+$('#pwOut').onclick=()=>{keepTok('');toast('Logged out');poll()};
+$('#restart').onclick=()=>{if(confirm('Restart the clock now?'))post('/api/restart',{}).then(()=>toast('Restarting…')).catch(()=>toast('Failed'))};
+// ---- state
+function lockView(s){S=null;document.body.classList.add('locked');document.documentElement.dataset.th=s.theme||'midnight';
+ $('#link').classList.remove('off');$('#link span').textContent='Locked';$$('section').forEach(x=>x.classList.toggle('on',x.id=='lock'));
+ if(s.lock>0)$('#lnote').textContent='Too many wrong passwords. Try again in '+Math.ceil(s.lock/60)+' min.'}
+function render(s){if(s.login)return lockView(s);document.body.classList.remove('locked');const first=!S;S=s;fAt=Date.now();
+ if(Date.now()-busy>2500)document.documentElement.dataset.th=s.theme;$('#link').classList.remove('off');$('#link span').textContent=s.ap?'Setup mode':'Online';
+ if(s.ap){document.body.classList.add('ap');if(first){$$('section').forEach(x=>x.classList.toggle('on',x.id=='setup'));$('#city0').value=s.city;tzSel($('#tz0'),s.tz);$('#ssid0').value=s.ssid;nets($('#nets0'),$('#ssid0'))}return}
+ if(first)show('home');
+ $('#time').textContent=s.time||'--:--';const p=PG.find(x=>x[0]==s.page)||[s.page,s.page=='system'?'System':s.page];$('#cur').textContent=p[1];
+ const bars=s.rssi>-60?'Strong':s.rssi>-72?'Good':s.rssi>-82?'Weak':'Very weak';$('#cWifi').textContent='Wi-Fi · '+bars;
+ $('#cBridge').classList.toggle('off',!s.bridge);$('#cBridge').lastChild.textContent=s.bridge?'Relay live':'Relay offline';relayNote(s);$('#cFw').textContent='OS '+s.fw;$('#cAlert').hidden=!s.al;$('#cAlert').textContent=s.al?'\u26a0 '+s.al:'';
+ $$('.tile').forEach(t=>{const i=PG.findIndex(x=>x[0]==t.dataset.p);t.classList.toggle('cur',t.dataset.p==s.page);t.classList.toggle('dim',i>0&&!(s.av>>i&1))});
+ if(Date.now()-busy>2500){
+  $$('.th').forEach(x=>x.classList.toggle('on',x.dataset.v==s.theme));
+  $('#bright').value=s.bright;pB();$('#glow').value=s.glow;pG();busy=0;
+  seg('#fmt',s.h24?1:0);seg('#rot',s.rotate);seg('#story',s.story);seg('#hold',s.hold);$$('#toggles input').forEach(c=>c.checked=!!(s.pages>>c.dataset.b&1));
+  const on=s.nf!=s.nt;$('#nightOn').checked=on;if(on){$('#nf').value=s.nf;$('#nt').value=s.nt}$('#hours').style.opacity=on?1:.4;$('#nf').disabled=$('#nt').disabled=!on;
+  if(first||document.activeElement.id!='city')$('#city').value=s.city;if(document.activeElement.id!='tz')tzSel($('#tz'),s.tz)}
+ $('#wifiNow').textContent='Connected to '+s.ssid+' · '+bars+' ('+s.rssi+' dBm)';
+ const up=s.up,ud=up>86400?(up/86400|0)+' d '+(up%86400/3600|0)+' h':up>3600?(up/3600|0)+' h '+(up%3600/60|0)+' min':(up/60|0)+' min';
+ const info=[['Firmware','CAIDEN OS '+s.fw],['Address',s.ip],['Network',s.ssid],['Signal',s.rssi+' dBm'],['Uptime',ud],['Free memory',(s.heap/1024).toFixed(1)+' KB'],['Cloud relay',s.bridge?'Live':(s.rh?'Offline':'Not set')]];
+ $('#info').innerHTML=info.map(()=>'<div class="row"><span class="n"></span><span class="v"></span></div>').join('');
+ $$('#info .row').forEach((r,i)=>{r.firstChild.textContent=info[i][0];r.lastChild.textContent=info[i][1]});
+ $('#updInstall').hidden=!s.upd;$('#updInstall').textContent='Install CAIDEN OS '+(s.upd||'');
+ $('#updNote').textContent=s.upd?'CAIDEN OS '+s.upd+' is ready (you have '+s.fw+').':!s.rh?'Set the cloud relay (Feeds tab) to get updates.':'CAIDEN OS '+s.fw+' is the latest.';
+ tick()}
+function tick(){if(!S||S.ap)return;const f=S.f,el=(Date.now()-fAt)/1000;
+ const left=f.p?Math.max(0,f.l-(f.r?el:0)):1500,len=f.p==2?300:1500;$('#pTime').textContent=fmt(left);$('#pBar').style.width=(f.p?100-left/len*100:0)+'%';
+ $('#pPhase').textContent=f.p==1?'Focus · session '+f.s+' of 4':f.p==2?'Break · session '+f.s+' of 4':'Pomodoro';
+ $('#pSub').textContent=f.p?(f.r?'Running':'Paused'):'4 × 25 min focus, 5 min breaks';$('#pPause').textContent=f.p&&!f.r?'Resume':'Pause';$('#pStart').textContent=f.p?'Restart':'Start';
+ const cd=f.cd?Math.max(0,f.cd-el):0;$('#cTime').textContent=f.cd?fmt(cd):'--:--';$('#sTime').textContent=fmt(f.sw+(f.swr?el:0));$('#today').textContent=f.today+' min';
+ const act=f.p||f.cd||f.swr;$('#focusMini').hidden=!act;if(act){$('#fmBig').textContent=f.p?fmt(left):f.cd?fmt(cd):fmt(f.sw+el);$('#fmBar').style.width=(f.p?100-left/len*100:0)+'%'}}
+function poll(){return fetch('/api/state',{cache:'no-store',headers:{'X-Caiden-Auth':TOK}}).then(r=>r.json()).then(render).catch(()=>{$('#link').classList.add('off');$('#link span').textContent='Offline'})}
+poll();setInterval(()=>{if(!document.hidden)poll()},5000);setInterval(tick,1000);
+</script></body></html>

@@ -1,0 +1,24 @@
+# ---- private: never commit these ----
+# Stock firmware backups hold the original firmware (not ours to share) and your Wi-Fi password.
+backups/
+*.bin
+# Each clock's secret update key
+firmware/tools/ota_key.txt
+# Your relay's Cloudflare settings (copy relay/wrangler.toml.example)
+relay/wrangler.toml
+relay/.dev.vars
+.env
+.env.*
+
+# ---- build output and tools ----
+firmware/.pio/
+relay/.wrangler/
+node_modules/
+__pycache__/
+*.pyc
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Fonts are downloaded separately (see firmware/fonts/README.md)
+firmware/fonts/*.ttf

@@ -1,0 +1,27 @@
+# Wrangler settings for your CAIDEN cloud relay.
+# Copy this file to wrangler.toml (which git ignores), fill in your KV namespace id, then deploy with:
+#   npx wrangler deploy
+# See README.md in this folder for the full setup.
+
+# Your worker's name; it becomes https://<name>.<your-subdomain>.workers.dev
+name = "caiden-relay"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# Keep variables set in the Cloudflare dashboard on each deploy. Secrets (ADMIN_KEY, CRICKET_KEY) are never
+# touched by a deploy.
+keep_vars = true
+
+# The clock uses the workers.dev address over plain HTTP.
+workers_dev = true
+
+# Storage for the Spotify sign-in, cricket scores, firmware updates and the clock's health report.
+# Create it with:  npx wrangler kv namespace create caiden
+# then paste the id it prints here.
+[[kv_namespaces]]
+binding = "CAIDEN"
+id = "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+
+# Spotify (optional): your Spotify app's Client ID. It is not a secret, so it can live here.
+# [vars]
+# SPOTIFY_CLIENT_ID = "your Spotify app's Client ID"

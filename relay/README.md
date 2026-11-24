@@ -7,7 +7,7 @@ worker fetches the data over HTTPS and serves it to the clock over plain HTTP, o
 
 | Page | Source |
 |---|---|
-| News, Markets, Quote | Relay (Google News, Yahoo Finance, CoinGecko, ZenQuotes) |
+| News, Markets, Quote | Relay (BBC and The Hindu RSS, Bing News search, Yahoo Finance, CoinGecko, ZenQuotes) |
 | Spotify (with album art) | Relay, after a one-time Spotify sign-in |
 | Cricket | Relay (free Cricinfo feed, or cricketdata.org with your key) |
 | Firmware updates, health report | Relay (images signed on your PC) |

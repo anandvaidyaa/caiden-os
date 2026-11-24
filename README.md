@@ -52,7 +52,8 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
 - **World clock:** London, New York, Tokyo and Dubai.
 - **Spotify:** track, artist, album art and progress. Shows only while something is playing; a small animated
   icon appears in every page's header while music plays.
-- **News:** up to 3 tabs, each a Google News topic or your own search (for example your city).
+- **News:** up to 3 tabs, each a topic (world, India, business, technology, science, sport, health,
+  entertainment) or your own search (for example your city).
 - **Markets:** up to 4 Yahoo Finance symbols (NIFTY, SENSEX, stocks, ...) plus Bitcoin.
 - **Cricket:** live scores of the team you follow, shown only while it plays. Free, with an optional key for
   overs and match status.
@@ -69,7 +70,7 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
 
 ```
                         plain HTTP                           HTTPS
-   ┌─────────────┐  ───────────────────►  ┌──────────────────────────┐  ──────►  Google News, Yahoo Finance,
+   ┌─────────────┐  ───────────────────►  ┌──────────────────────────┐  ──────►  BBC, Bing News, Yahoo Finance,
    │ CAIDEN OS   │                         │ Your cloud relay         │           CoinGecko, ZenQuotes, Spotify,
    │ (the clock) │  ◄───────────────────   │ Cloudflare Worker (free) │  ◄──────  Cricinfo, firmware updates
    └─────────────┘                         └──────────────────────────┘
@@ -225,7 +226,7 @@ docs/                  hardware, backup/restore and update guides; images for th
 
 ## Credits and licence
 
-Weather and air quality: [Open-Meteo](https://open-meteo.com/). News: Google News RSS. Markets: Yahoo Finance and
+Weather and air quality: [Open-Meteo](https://open-meteo.com/). News: BBC and The Hindu RSS feeds and Bing News search. Markets: Yahoo Finance and
 CoinGecko. Quotes: ZenQuotes. Cricket: ESPNcricinfo's live-score feed or [CricketData.org](https://cricketdata.org/).
 Album art resizing: [wsrv.nl](https://wsrv.nl/). Fonts: Inter, Outfit, Ubuntu and Source Code Pro.
 

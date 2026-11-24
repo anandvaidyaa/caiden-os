@@ -17,7 +17,7 @@ const DEFAULTS = {
   feeds: [
     { tab: "WORLD", topic: "WORLD" },
     { tab: "TECH", topic: "TECHNOLOGY" },
-    { tab: "WORLD", topic: "WORLD" },
+    { tab: "BUSINESS", topic: "BUSINESS" },
   ],
   markets: [
     { sym: "^NSEI", name: "NIFTY 50" },
@@ -178,21 +178,49 @@ async function markets(s) {
   return done.filter((d) => d.status === "fulfilled").map((d) => d.value).slice(0, 5);
 }
 
-// ---------------------------------------------------------------- news (Google News RSS)
-function feedUrl(f) {
-  if (f.search) return `https://news.google.com/rss/search?q=${encodeURIComponent(f.search + " when:1d")}&${NEWS_REGION}`;
-  return `https://news.google.com/rss/headlines/section/topic/${encodeURIComponent(f.topic)}?${NEWS_REGION}`;
+// ---------------------------------------------------------------- news
+// Google News answers Cloudflare's servers with 503 "Sorry..." (bot check, seen 2026-11-24), so topics
+// come from fixed RSS feeds and searches from Bing News. Google stays as the fallback in case it opens up.
+const TOPIC_FEEDS = {
+  WORLD: ["https://feeds.bbci.co.uk/news/world/rss.xml", "BBC"],
+  NATION: ["https://www.thehindu.com/news/national/feeder/default.rss", "The Hindu"],
+  BUSINESS: ["https://feeds.bbci.co.uk/news/business/rss.xml", "BBC"],
+  TECHNOLOGY: ["https://feeds.bbci.co.uk/news/technology/rss.xml", "BBC"],
+  SCIENCE: ["https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", "BBC"],
+  SPORTS: ["https://feeds.bbci.co.uk/sport/rss.xml", "BBC Sport"],
+  HEALTH: ["https://feeds.bbci.co.uk/news/health/rss.xml", "BBC"],
+  ENTERTAINMENT: ["https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", "BBC"],
+};
+
+function feedSources(f) {   // [url, source name or ""] in the order to try
+  const google = f.search
+    ? `https://news.google.com/rss/search?q=${encodeURIComponent(f.search + " when:1d")}&${NEWS_REGION}`
+    : `https://news.google.com/rss/headlines/section/topic/${encodeURIComponent(f.topic)}?${NEWS_REGION}`;
+  const first = f.search
+    ? [`https://www.bing.com/news/search?q=${encodeURIComponent(f.search)}&format=rss&mkt=en-IN`, ""]
+    : TOPIC_FEEDS[f.topic];
+  return first ? [first, [google, ""]] : [[google, ""]];
 }
 
 async function feedRows(f, maxAgeH) {
-  const r = await fetch(feedUrl(f), { headers: { "User-Agent": UA } });
+  for (const [url, name] of feedSources(f)) {
+    try {
+      const rows = await feedRowsFrom(url, name, f, maxAgeH);
+      if (rows.length) return rows;
+    } catch { /* next source */ }
+  }
+  return [];
+}
+
+async function feedRowsFrom(url, srcName, f, maxAgeH) {
+  const r = await fetch(url, { headers: { "User-Agent": UA } });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const xml = await r.text();
   const cat = fold(f.tab, 7);
   const maxAge = maxAgeH * 60, now = Date.now(), seen = new Set(), rows = [];
   for (const m of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
     const item = m[1];
-    const src = tag(item, "source");
+    const src = srcName || tag(item, "source") || tag(item, "News:Source");
     let title = tag(item, "title");
     if (src && title.endsWith(" - " + src)) title = title.slice(0, -(src.length + 3));
     title = fold(title, 112);

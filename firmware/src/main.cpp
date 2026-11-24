@@ -20,6 +20,7 @@
 #include "services/ClockService.h"
 #include "services/WeatherService.h"
 #include "services/BridgeService.h"
+#include "services/LanScanService.h"
 #include "state/AppState.h"
 
 AppState g_state;
@@ -127,7 +128,7 @@ static bool pageAvailable(uint8_t i) {
     if (s == &marketsScreen) return b.markets > 0;
     if (s == &newsScreen) return b.news > 0;
     if (s == &quoteScreen) return b.qt.text[0];
-    if (s == &lanScreen) return false;
+    if (s == &lanScreen) return b.ln.count > 0;
     if (s == &sunScreen) return g_state.weather.valid;
     return true;
 }
@@ -439,6 +440,7 @@ void loop() {
     if (!g_ui.transitioning()) {
         g_weather.loop(g_net.online() && g_clock.valid());
         g_bridge.loop(g_net.online());
+        g_lan.loop(g_net.online());          // Home network page: the clock's own device count
     }
 
     static uint32_t lastAlert = 0;

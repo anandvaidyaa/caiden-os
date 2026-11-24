@@ -291,11 +291,11 @@ const NAV=[['home','Home'],['display','Display'],['pages','Pages'],['feeds','Fee
 $('#nav').innerHTML=NAV.map(([k,l])=>'<button data-t="'+k+'">'+svg(k=='feeds'?'news':k)+l+'</button>').join('');
 $$('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.t));
 function show(t){tab=t;if(t=='feeds')loadFeeds();$$('section').forEach(s=>s.classList.toggle('on',s.id==t));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));scrollTo({top:0,behavior:'smooth'})}
-$('#tiles').innerHTML=[...PG,['system','System','Device info']].filter(x=>x[0]!='calendar'&&x[0]!='lan'&&x[0]!='speed').map(([k,n,d])=>'<button class="tile" data-p="'+k+'">'+svg(k)+'<span>'+n+'</span><small>'+d+'</small></button>').join('');
+$('#tiles').innerHTML=[...PG,['system','System','Device info']].filter(x=>x[0]!='calendar'&&x[0]!='speed').map(([k,n,d])=>'<button class="tile" data-p="'+k+'">'+svg(k)+'<span>'+n+'</span><small>'+d+'</small></button>').join('');
 $$('.tile').forEach(b=>b.onclick=()=>post('/api/page',{name:b.dataset.p}).then(()=>{toast('Showing '+b.querySelector('span').textContent);setTimeout(poll,900)}).catch(()=>toast('Could not reach the clock')));
 $('#themes').innerHTML=TH.map(([k,n,d,bg,g,a,t])=>'<button class="th" data-v="'+k+'"><div class="pv" style="--c:'+a+';color:'+t+';background:radial-gradient(90% 90% at 80% 0,'+g+','+bg+' 70%)"><i></i><em>09:41</em></div><b>'+n+'</b><small>'+d+'</small></button>').join('');
 $$('.th').forEach(b=>b.onclick=()=>{document.documentElement.dataset.th=b.dataset.v;$$('.th').forEach(x=>x.classList.toggle('on',x==b));set({theme:b.dataset.v},'Theme applied')});
-$('#toggles').innerHTML=PG.map((x,i)=>[...x,i]).filter(x=>x[3]&&x[0]!='calendar'&&x[0]!='lan'&&x[0]!='speed').map(([k,n,d,i])=>'<div class="row"><div><div class="n">'+n+'</div><div class="s">'+d+'</div></div><label class="sw"><input type="checkbox" data-b="'+i+'"><span></span></label></div>').join('');
+$('#toggles').innerHTML=PG.map((x,i)=>[...x,i]).filter(x=>x[3]&&x[0]!='calendar'&&x[0]!='speed').map(([k,n,d,i])=>'<div class="row"><div><div class="n">'+n+'</div><div class="s">'+d+'</div></div><label class="sw"><input type="checkbox" data-b="'+i+'"><span></span></label></div>').join('');
 $$('#toggles input').forEach(c=>c.onchange=()=>{let m=1;$$('#toggles input').forEach(x=>{if(x.checked)m|=1<<x.dataset.b});set({pages:m},c.checked?'Added to rotation':'Removed from rotation')});
 const H=[...Array(24)].map((_,h)=>[String(h),String(h).padStart(2,'0')+':00']);opts($('#nf'),H);opts($('#nt'),H);
 const night=fromToggle=>{const on=$('#nightOn').checked;$('#hours').style.opacity=on?1:.4;$('#nf').disabled=$('#nt').disabled=!on;

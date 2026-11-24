@@ -668,15 +668,15 @@ void LanScreen::render(Canvas& c, const Theme& t) {
     hero(c, t, M - 3, 124, buf, FONT_L_CLOCK_XL);
     // router + new devices, right column
     label(c, 226, 76, FS("ROUTER"), t.text3, Align::Right);
-    if (l.gwMs >= 0) snprintf_P(buf, sizeof buf, PSTR("%d ms"), l.gwMs); else snprintf_P(buf, sizeof buf, PSTR("no reply"));
-    c.text(226, 96, buf, FONT_L_TITLE, l.gwMs >= 0 && l.gwMs < 20 ? t.good : t.warn, Align::Right);
+    c.text(226, 96, l.gwMs >= 0 ? "Online" : "Not seen", FONT_L_TITLE, l.gwMs >= 0 ? t.good : t.warn, Align::Right);
     if (l.newCount) {
-        snprintf_P(buf, sizeof buf, PSTR("%u new today"), unsigned(l.newCount));
+        snprintf_P(buf, sizeof buf, PSTR("%u joined"), unsigned(l.newCount));   // since the clock started
         c.glow(226 - Canvas::textWidth(buf, FONT_L_BODY) - 8, 118, 7, t.highlight, 120);
         c.fillCircle(226 - Canvas::textWidth(buf, FONT_L_BODY) - 8, 118, 2.6f, t.highlight);
         c.text(226, 122, buf, FONT_L_BODY, t.highlight, Align::Right);
     }
-    // devices: 2 columns x 4 rows on hairlines, new ones first (bridge order)
+    // devices: 2 columns x 4 rows on hairlines, new ones first, then the router (LanScanService order);
+    // names are the last 3 bytes of each device's MAC address
     hairline(c, t, 140);
     for (uint8_t i = 0; i < l.devN; i++) {
         const LanDevice& d = l.dev[i];

@@ -58,6 +58,8 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
 - **Cricket:** live scores of the team you follow, shown only while it plays. Free, with an optional key for
   overs and match status.
 - **Quote of the day.**
+- **Home network:** how many devices are on your network right now, the router, and new arrivals. The clock
+  scans its own network every 5 minutes; nothing leaves your network.
 - **Focus:** Pomodoro, countdown timer and stopwatch, controlled from your phone.
 - **System:** Wi-Fi signal, IP address, uptime, free memory and the settings-page password.
 - **Four themes**, brightness, ambient glow, 12/24-hour clock, night screensaver, page rotation (choose pages

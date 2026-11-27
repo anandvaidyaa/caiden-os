@@ -14,6 +14,7 @@ and updated over the air from anywhere.
 
 ## Contents
 
+- [What's new](#whats-new)
 - [Screens](#screens)
 - [Features](#features)
 - [How it works](#how-it-works)
@@ -26,6 +27,103 @@ and updated over the air from anywhere.
 - [Troubleshooting](#troubleshooting)
 - [Project layout](#project-layout)
 - [Credits and licence](#credits-and-licence)
+
+## What's new
+
+The latest firmware is **0.9.5**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
+
+### Mining page: a miner at work
+
+![Mining page](docs/images/mining.png)
+
+The Mining page shows a little miner with a helmet lamp swinging a pickaxe at a crystal rock:
+- **Swing speed:** faster as the hash rate rises.
+- **Sparks:** every strike throws them.
+- **Accepted shares:** pop a **D** coin out of the rock into the DUCO-earned counter.
+- **Rejected shares:** make him say "Oops".
+- **Paused:** his speech bubble says why ("Low memory", "Finding a pool...", ...).
+
+Below the scene:
+- hash rate;
+- accepted and rejected shares, with the percentage good;
+- a 24-hour line;
+- today's INR value and your DUCO total;
+- the odds of this clock finding a Bitcoin block today.
+
+Only the arm, the sparks and the flying coin are redrawn, so mining keeps most of the processor.
+
+### Badges in every page header
+
+![Header badges](docs/images/badges.png)
+
+While mining is on, a small gold pickaxe taps in the header of every page. It turns grey while mining is paused.
+It sits next to the Spotify equaliser, which still shows whenever music plays. On Home, both appear in the
+bottom-left corner.
+
+The header lays out right to left: the time (or LIVE, or how old the data is), then the badges, then the page
+title, which gets shortened with "…" if it doesn't fit. Nothing overlaps.
+
+### Home network page and a password on the clock
+
+![Network and System pages](docs/images/network_system.png)
+
+- **Network page:** how many devices are on your network right now, whether the router answers, devices that
+  joined since the clock started, and up to 8 devices by the end of their MAC address. The clock finds them
+  itself every 5 minutes; nothing leaves your network.
+- **System page:** now shows the settings-page **password** that the clock made, in place of "Last sync".
+
+### Settings page: Mining and Password cards
+
+![Mining and Password cards](docs/images/portal_mining_password.png)
+
+- **Mining card** (Feeds tab):
+  - switch it on and add your Duino-Coin account;
+  - live hash rate, shares, difficulty and earnings;
+  - what the pool itself sees for your rig;
+  - the Bitcoin odds and a 24-hour chart.
+- **Password card** (System tab): show the password on the clock, make a new one (logs out every other browser),
+  or log out of this browser.
+
+### Faster and leaner
+
+| | Before | Now |
+|---|---|---|
+| Mining speed (real, in the clock's spare time) | not measured, and every share rejected (0.8.7) | **33–39 kH/s**, almost no rejects |
+| Mining code speed while hashing | generic SHA-1 | **54.7 kH/s**: one-block kernel, precomputed rounds, in fast IRAM |
+| Free memory on the clock | 10.5 KB | **12.0 KB** (183 log and format strings moved to flash) |
+| Freeze each Spotify check (every 5 s while playing) | about 0.6 s | **none**: the reply is read in the background |
+| Cloud update download | 161 s | **about 40 s** |
+
+### Other changes
+
+- **News:** Google News started blocking Cloudflare, so the relay now reads BBC and The Hindu RSS for topics and
+  Bing News for your own searches.
+- **Health report:** `http://<your relay>/clock.json` shows the version, uptime, memory, Wi-Fi signal, last
+  restart reason, the last update error, and mining speed and shares, so you can check the clock without USB.
+- **Connection page removed:** its "speed" was the clock's own link, never your internet line.
+- **Home screen:** the conditions line ("Clear · Moderate air") fits inside the air-quality ring.
+
+<details>
+<summary>Version history</summary>
+
+| Version | Change |
+|---|---|
+| 0.9.5 | The Mining card's 24-hour chart shows (it stayed hidden) |
+| 0.9.4 | Faster mining kernel, 15 ms mining slices on still pages, `minebench` USB command, quieter pickaxe badge |
+| 0.9.2 | Spotify checks no longer freeze the clock |
+| 0.9.1 | 183 strings moved from RAM to flash: about 1.5 KB more free memory |
+| 0.9.0 | One-block SHA-1 mining kernel in IRAM: 20–33 kH/s real rate |
+| 0.8.9 | Mining pickaxe badge in every header; header lays itself out so nothing overlaps |
+| 0.8.8 | Animated miner page; fixed every share being rejected ("Modified hashrate") |
+| 0.8.7 | Duino-Coin hobby miner (off by default) and the Mining card |
+| 0.8.6 | Home network page (device count) |
+| 0.8.5 | Connection page removed |
+| 0.8.4 | Health report at `/clock.json` |
+| 0.8.3 | Settings-page password made by the clock, shown on the System page |
+| 0.8.2 | Fixed the status reply sometimes being cut off |
+| 0.8.1 | Conditions line on Home fits inside the gauge |
+| 0.8.0 | Faster cloud updates |
+</details>
 
 ## Screens
 
@@ -51,18 +149,18 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
 - **Air quality:** NAQI with PM2.5 and PM10, plus a 24-hour history.
 - **Sun & Moon:** daylight arc and moon phase.
 - **World clock:** London, New York, Tokyo and Dubai.
-- **Spotify:** track, artist, album art and progress. Shows only while something is playing; a small animated
-  icon appears in every page's header while music plays.
+- **Spotify:** track, artist, album art and progress. Shows only while something is playing; an animated
+  equaliser appears in every page's header while music plays.
 - **News:** up to 3 tabs, each a topic (world, India, business, technology, science, sport, health,
   entertainment) or your own search (for example your city).
 - **Markets:** up to 4 Yahoo Finance symbols (NIFTY, SENSEX, stocks, ...) plus Bitcoin.
 - **Cricket:** live scores of the team you follow, shown only while it plays. Free, with an optional key for
   overs and match status.
 - **Quote of the day.**
-- **Mining (hobby, off by default):** mines [Duino-Coin](https://duinocoin.com) in the clock's spare time, with a
-  spinning hash-rate orbit, share results, 24-hour history, earnings and a tongue-in-cheek "Bitcoin lottery".
-  See [Mining](#mining-hobby).
-- **Home network:** how many devices are on your network right now, the router, and new arrivals. The clock
+- **Mining (hobby, off by default):** mines [Duino-Coin](https://duinocoin.com) in the clock's spare time at
+  about 30–40 kH/s, with an animated miner, share results, a 24-hour history, earnings and a tongue-in-cheek
+  "Bitcoin lottery". A small pickaxe in every header shows it's running. See [Mining](#mining-hobby).
+- **Network:** how many devices are on your network right now, the router, and new arrivals. The clock
   scans its own network every 5 minutes; nothing leaves your network.
 - **Focus:** Pomodoro, countdown timer and stopwatch, controlled from your phone.
 - **System:** Wi-Fi signal, IP address, uptime, free memory and the settings-page password.
@@ -172,9 +270,9 @@ On the settings page you can:
 | **Home** | Shows any page on the clock right now; live clock and status |
 | **Display** | Theme, brightness, ambient glow, 12/24-hour clock |
 | **Pages** | Rotation interval, how long a picked page stays, which pages rotate, night screensaver |
-| **Feeds** | Cloud relay address, news tabs, markets, Bitcoin, news age, cricket team |
+| **Feeds** | Cloud relay address, news tabs, markets, Bitcoin, news age, cricket team, **Mining** card (account, on/off, live stats, 24-hour chart) |
 | **Focus** | Pomodoro (4 × 25 min), countdown timer, stopwatch, minutes focused today |
-| **System** | Device info, firmware update, password, city and time zone, Wi-Fi, restart |
+| **System** | Device info, firmware update, **Password** card (show on clock, new password, log out), city and time zone, Wi-Fi, restart |
 
 ## Mining (hobby)
 
@@ -199,15 +297,17 @@ more than that. It's here for the fun of watching it work, and every number show
   stay as smooth as before.
 - **Automatic pauses:** it stops during firmware updates and pauses when free memory drops below 8 KB or Wi-Fi is
   weaker than -85 dBm.
-- **Mining page:**
-  - a hash-rate orbit that spins faster as the hash rate rises;
-  - a green or red block flash for each accepted or rejected share;
-  - the last 8 shares as a chain;
-  - a 24-hour chart;
-  - DUCO earned today and its INR value;
-  - the odds that this clock finds a Bitcoin block today.
+- **Mining page:** an animated miner swinging a pickaxe; see the picture under [What's new](#whats-new).
+  - Coins fly into the DUCO counter for accepted shares, and he says "Oops" for rejected ones.
+  - Below: hash rate, shares, a 24-hour line, today's INR value and your total, and the Bitcoin odds.
+- **Header badge:** a small gold pickaxe in every page header (grey while paused), next to the Spotify equaliser.
 - **Settings page:** the same numbers, the pool's own view of your rig, and a 24-hour chart.
 - **Remote check:** the relay's `/clock.json` also shows the hash rate and shares.
+- **Measure it yourself:** with USB, `python -I tools/serial_cmd.py '{"cmd":"minebench"}'` (from `firmware/`)
+  prints the raw hashing speed (about 54.7 kH/s on 0.9.4). The real rate is lower because the clock only mines
+  in its spare time.
+- **Earnings stay small:** Duino-Coin lowers the reward per share as a device gets faster, so more hash rate
+  raises DUCO only a little.
 - **Privacy:** your username and mining key stay in the clock's settings. The relay looks up your public Duino-Coin
   balance for the earnings line.
 

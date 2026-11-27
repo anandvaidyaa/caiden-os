@@ -386,7 +386,7 @@ function loadMine(first){return fetch('/api/mining',{cache:'no-store',headers:{'
   ['Pool sees this rig',m.relay?(m.phr>=1000?(m.phr/1000).toFixed(2)+' kH/s':Math.round(m.phr)+' H/s')+' · '+m.pacc+' accepted':'-'],['Bitcoin block today',odds]];
  $('#mStats').innerHTML=rows.map(()=>'<div class="row"><span class="n"></span><span class="v"></span></div>').join('');
  $$('#mStats .row').forEach((r,i)=>{r.firstChild.textContent=rows[i][0];r.lastChild.textContent=rows[i][1]});
- const h=[...m.hist,Math.round(m.hr)],mx=Math.max(1,...h),bw=300/24;$('#mChart').hidden=!m.on;
+ const h=[...m.hist,Math.round(m.hr)],mx=Math.max(1,...h),bw=300/24;$('#mChart').toggleAttribute('hidden',!m.on);
  $('#mChart').innerHTML=h.map((v,i)=>'<rect x="'+((24-h.length+i)*bw+1)+'" y="'+(64-60*v/mx)+'" width="'+(bw-2)+'" height="'+(60*v/mx)+'" rx="2" opacity="'+(i==h.length-1?1:.55)+'"/>').join('');
  $('#mNote').textContent=m.on?'Bars: hourly average hash rate over 24 h (last bar: now). The clock pauses mining during updates and when memory or Wi-Fi run low.':''}).catch(()=>{})}
 setInterval(()=>{if(!document.hidden&&tab=='feeds')loadMine()},5000);

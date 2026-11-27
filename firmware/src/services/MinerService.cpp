@@ -64,7 +64,7 @@ void MinerService::setStatus(uint8_t s, const char* why) {
     const MineStatus ns = MineStatus(s);
     if (m.status != ns || strcmp(m.why, why)) {
         m.status = ns;
-        snprintf(m.why, sizeof m.why, "%s", why);
+        snprintf_P(m.why, sizeof m.why, PSTR("%s"), why);
         m.version++;
     }
 }
@@ -129,7 +129,7 @@ bool MinerService::parseJob() {   // "<40 hex last hash>,<40 hex expected>,<diff
 }
 
 void MinerService::setDigits() {
-    ndig_ = uint8_t(snprintf(digits_, sizeof digits_, "%lu", (unsigned long)nonce_));
+    ndig_ = uint8_t(snprintf_P(digits_, sizeof digits_, PSTR("%lu"), (unsigned long)nonce_));
 }
 
 void MinerService::hashSlice(uint32_t now) {

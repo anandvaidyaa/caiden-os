@@ -111,7 +111,7 @@ void UIManager::setAlert(const char* text, uint8_t kind) {
         return;
     }
     const bool same = kind == alertKind_ && !strcmp(text, alertText_);
-    snprintf(alertText_, sizeof alertText_, "%s", text);
+    snprintf_P(alertText_, sizeof alertText_, PSTR("%s"), text);
     alertKind_ = kind;
     if (!same) { showBanner(millis(), 10000); dirty_.add(R_BANNER); }
 }
@@ -187,7 +187,7 @@ void UIManager::stepPush(uint32_t /*now*/) {
     if (pushS_ >= 240) {
         d.setBacklight(bright_);
         lastBl = 0;
-        Serial.printf("[ui] push %lu ms (head start %lu ms, %u waits for drawing)\n", (unsigned long)(now - phaseStart_),
+        Serial.printf_P(PSTR("[ui] push %lu ms (head start %lu ms, %u waits for drawing)\n"), (unsigned long)(now - phaseStart_),
                       (unsigned long)(motionStart_ - phaseStart_), waits);
         cur_ = next_; next_ = nullptr;
         phase_ = Phase::Idle;

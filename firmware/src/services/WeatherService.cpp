@@ -29,9 +29,9 @@ static bool getJson(const String& url, JsonDocument& doc, JsonDocument& filter) 
     if (code == HTTP_CODE_OK) {
         DeserializationError e = deserializeJson(doc, http.getStream(), DeserializationOption::Filter(filter));
         ok = !e;
-        if (e) Serial.printf("[wx] json: %s\n", e.c_str());
+        if (e) Serial.printf_P(PSTR("[wx] json: %s\n"), e.c_str());
     } else {
-        Serial.printf("[wx] http %d\n", code);
+        Serial.printf_P(PSTR("[wx] http %d\n"), code);
     }
     http.end();
     return ok;
@@ -42,7 +42,7 @@ static String urlEncode(const char* s) {
     for (; *s; s++) {
         char c = *s;
         if (isalnum(uint8_t(c)) || c == '-' || c == '_' || c == '.') o += c;
-        else { char b[4]; snprintf(b, sizeof b, "%%%02X", uint8_t(c)); o += b; }
+        else { char b[4]; snprintf_P(b, sizeof b, PSTR("%%%02X"), uint8_t(c)); o += b; }
     }
     return o;
 }
@@ -58,7 +58,7 @@ bool WeatherService::geocode() {
     if (!getJson(url, doc, filter)) return false;
     JsonVariant r = doc["results"][0];
     if (r.isNull()) {
-        Serial.printf("[wx] city '%s' not found\n", c.city);
+        Serial.printf_P(PSTR("[wx] city '%s' not found\n"), c.city);
         c.geoResolved = true; c.geoFailed = true;
         g_config.save();
         g_state.weather.version++;            // let the home screen show "City not found"
@@ -69,19 +69,19 @@ bool WeatherService::geocode() {
     c.lon = r["longitude"] | c.lon;
     c.geoResolved = true;
     g_config.save();
-    Serial.printf("[wx] %s -> %.3f, %.3f\n", c.city, c.lat, c.lon);
+    Serial.printf_P(PSTR("[wx] %s -> %.3f, %.3f\n"), c.city, c.lat, c.lon);
     return true;
 }
 
 bool WeatherService::fetchWeather() {
     Config& c = g_config.get();
     char url[480];
-    snprintf(url, sizeof url,
-             "http://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f"
+    snprintf_P(url, sizeof url,
+             PSTR("http://api.open-meteo.com/v1/forecast?latitude=%.3f&longitude=%.3f"
              "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,"
              "wind_direction_10m,is_day,uv_index,precipitation_probability&hourly=temperature_2m,precipitation_probability"
              "&daily=weather_code,sunrise,sunset,temperature_2m_max,temperature_2m_min,uv_index_max"
-             "&forecast_days=5&timezone=auto",
+             "&forecast_days=5&timezone=auto"),
              c.lat, c.lon);
     JsonDocument filter, doc;
     JsonObject f = filter["current"].to<JsonObject>();
@@ -141,7 +141,7 @@ bool WeatherService::fetchWeather() {
     w.fetchedMs = millis();
     w.version++;
     g_state.lastSyncEpoch = time(nullptr);
-    Serial.printf("[wx] %.1f C code %d hum %u\n", w.temp, w.code, w.humidity);
+    Serial.printf_P(PSTR("[wx] %.1f C code %d hum %u\n"), w.temp, w.code, w.humidity);
     return true;
 }
 
@@ -166,9 +166,9 @@ int WeatherService::naqiFromPm(float pm25, float pm10) {
 bool WeatherService::fetchAir() {
     Config& c = g_config.get();
     char url[220];
-    snprintf(url, sizeof url,
-             "http://air-quality-api.open-meteo.com/v1/air-quality?latitude=%.3f&longitude=%.3f"
-             "&current=us_aqi,pm2_5,pm10&hourly=pm2_5,pm10&past_days=1&forecast_days=1&timezone=auto", c.lat, c.lon);
+    snprintf_P(url, sizeof url,
+             PSTR("http://air-quality-api.open-meteo.com/v1/air-quality?latitude=%.3f&longitude=%.3f"
+             "&current=us_aqi,pm2_5,pm10&hourly=pm2_5,pm10&past_days=1&forecast_days=1&timezone=auto"), c.lat, c.lon);
     JsonDocument filter, doc;
     JsonObject f = filter["current"].to<JsonObject>();
     f["us_aqi"] = true; f["pm2_5"] = true; f["pm10"] = true;
@@ -206,7 +206,7 @@ bool WeatherService::fetchAir() {
     a.valid = true;
     a.fetchedMs = millis();
     a.version++;
-    Serial.printf("[air] pm2.5 %.1f pm10 %.1f naqi %d us %d\n", a.pm25, a.pm10, a.naqi, a.usAqi);
+    Serial.printf_P(PSTR("[air] pm2.5 %.1f pm10 %.1f naqi %d us %d\n"), a.pm25, a.pm10, a.naqi, a.usAqi);
     return true;
 }
 

@@ -92,7 +92,7 @@ static int catmull(const float* xs, const float* ys, int n, int sub, float* ox, 
 
 static void fmtTime(char* out, size_t n, uint32_t ms) {
     uint32_t s = ms / 1000;
-    snprintf(out, n, "%lu:%02lu", (unsigned long)(s / 60), (unsigned long)(s % 60));
+    snprintf_P(out, n, PSTR("%lu:%02lu"), (unsigned long)(s / 60), (unsigned long)(s % 60));
 }
 
 // ================================================================ SPOTIFY
@@ -243,7 +243,7 @@ void MarketsScreen::render(Canvas& c, const Theme& t) {
 
     // hero value: integer part large, decimals small
     char buf[24], ip[16];
-    snprintf(ip, sizeof ip, "%s", h.value);
+    snprintf_P(ip, sizeof ip, PSTR("%s"), h.value);
     char* dot = strchr(ip, '.');
     if (numericOnly(h.value)) {
         if (dot) *dot = 0;
@@ -253,9 +253,9 @@ void MarketsScreen::render(Canvas& c, const Theme& t) {
         c.text(M - 1, 86, h.value, FONT_L_HEAD, t.text);     // value with a currency sign / unit
     }
     // change: absolute in colour, then a tinted chip with arrow + percent
-    snprintf(buf, sizeof buf, "%+.2f", h.delta);
+    snprintf_P(buf, sizeof buf, PSTR("%+.2f"), h.delta);
     int16_t dw = c.text(M, 108, buf, FONT_L_BODY, col);
-    snprintf(buf, sizeof buf, "%+.2f%%", h.change);
+    snprintf_P(buf, sizeof buf, PSTR("%+.2f%%"), h.change);
     const float chipX = M + dw + 10, chipW = Canvas::textWidth(buf, FONT_L_BODY) + 26;
     c.setOpacity(t.dark ? 46 : 31);
     c.fillRoundRect(chipX, 95, chipW, 19, 9.5f, col);
@@ -263,7 +263,7 @@ void MarketsScreen::render(Canvas& c, const Theme& t) {
     tri(c, chipX + 10, 104.5f, up, 5.5f, col);
     c.text(int16_t(chipX + chipW - 8), 109, buf, FONT_L_BODY, col, Align::Right);
     if (h.prev[0]) {
-        snprintf(buf, sizeof buf, "PREV %s", h.prev);
+        snprintf_P(buf, sizeof buf, PSTR("PREV %s"), h.prev);
         label(c, 226, 108, buf, t.text3, Align::Right);
     }
 
@@ -306,7 +306,7 @@ void MarketsScreen::render(Canvas& c, const Theme& t) {
         Canvas::ellipsize(m.name, FONT_L_LABEL, 80, nm, sizeof nm);
         label(c, M + 10, y, nm, t.text2);
         c.text(162, y, m.value, FONT_L_BODY, t.text, Align::Right);
-        snprintf(buf, sizeof buf, "%+.2f%%", m.change);
+        snprintf_P(buf, sizeof buf, PSTR("%+.2f%%"), m.change);
         c.text(226, y, buf, FONT_L_BODY, rc, Align::Right);
     }
 }
@@ -346,15 +346,15 @@ static int wrapLines(const char* s, const Font& f, int16_t maxW, char out[][64],
         word[k] = 0;
         if (!k) break;
         char trial[128];
-        snprintf(trial, sizeof trial, "%s%s%s", line, line[0] ? " " : "", word);
-        if (Canvas::textWidth(trial, f) <= maxW) { snprintf(line, sizeof line, "%s", trial); continue; }
-        if (line[0]) { snprintf(out[n++], 64, "%.63s", line); }
-        snprintf(line, sizeof line, "%s", word);
+        snprintf_P(trial, sizeof trial, PSTR("%s%s%s"), line, line[0] ? " " : "", word);
+        if (Canvas::textWidth(trial, f) <= maxW) { snprintf_P(line, sizeof line, PSTR("%s"), trial); continue; }
+        if (line[0]) { snprintf_P(out[n++], 64, PSTR("%.63s"), line); }
+        snprintf_P(line, sizeof line, PSTR("%s"), word);
     }
-    if (line[0] && n < maxLines) snprintf(out[n++], 64, "%.63s", line);
+    if (line[0] && n < maxLines) snprintf_P(out[n++], 64, PSTR("%.63s"), line);
     else if (n == maxLines && (line[0] || *p)) {   // truncated: ellipsize the last line
         char tmp[72];
-        snprintf(tmp, sizeof tmp, "%s\xE2\x80\xA6", out[n - 1]);
+        snprintf_P(tmp, sizeof tmp, PSTR("%s\xE2\x80\xA6"), out[n - 1]);
         Canvas::ellipsize(tmp, f, maxW, out[n - 1], 64);
     }
     return n;
@@ -372,7 +372,7 @@ void NewsScreen::render(Canvas& c, const Theme& t) {
     const uint8_t cur = idx_ % b.news;
     const NewsItem& it = b.nw[cur];
     char buf[48];
-    snprintf(buf, sizeof buf, "%s  \xC2\xB7  %u OF %u", it.cat[0] ? it.cat : "NEWS", unsigned(cur + 1), unsigned(b.news));
+    snprintf_P(buf, sizeof buf, PSTR("%s  \xC2\xB7  %u OF %u"), it.cat[0] ? it.cat : "NEWS", unsigned(cur + 1), unsigned(b.news));
     header(c, t, buf, nullptr, t.accent2, wifiBars(), nullptr, g_state.bridge.nwAt);
     segments(c, t, b.news, cur, float(millis() - storyAt_) / storyMs());
     const Rect win = c.window();
@@ -383,9 +383,9 @@ void NewsScreen::render(Canvas& c, const Theme& t) {
     float xx = M + 12 + c.text(M + 12, 58, it.src, FONT_L_BODY, t.text2) + 6;
     if (it.ageMin >= 0) {
         xx += c.text(int16_t(xx), 58, "\xC2\xB7", FONT_L_BODY, t.text3) + 6;
-        if (it.ageMin < 60) snprintf(buf, sizeof buf, "%ld min ago", long(it.ageMin));
-        else if (it.ageMin < 48 * 60) snprintf(buf, sizeof buf, "%ld h ago", long(it.ageMin / 60));
-        else snprintf(buf, sizeof buf, "%ld d ago", long(it.ageMin / 1440));
+        if (it.ageMin < 60) snprintf_P(buf, sizeof buf, PSTR("%ld min ago"), long(it.ageMin));
+        else if (it.ageMin < 48 * 60) snprintf_P(buf, sizeof buf, PSTR("%ld h ago"), long(it.ageMin / 60));
+        else snprintf_P(buf, sizeof buf, PSTR("%ld d ago"), long(it.ageMin / 1440));
         c.text(int16_t(xx), 58, buf, FONT_L_BODY, t.text3);
     }
     // largest size that shows the whole headline: Outfit 23 x 4, display 18 x 5, title 15 x 6
@@ -408,7 +408,7 @@ void NewsScreen::render(Canvas& c, const Theme& t) {
     label(c, M, 216, FS("UP NEXT"), t.highlight);
     const NewsItem& nx = b.nw[(idx_ + 1) % b.news];
     char nxt[140];
-    snprintf(nxt, sizeof nxt, "%s%s%s", nx.cat[0] && strcmp(nx.cat, it.cat) ? nx.cat : "",
+    snprintf_P(nxt, sizeof nxt, PSTR("%s%s%s"), nx.cat[0] && strcmp(nx.cat, it.cat) ? nx.cat : "",
              nx.cat[0] && strcmp(nx.cat, it.cat) ? " \xC2\xB7 " : "", nx.head);
     const int16_t tx0 = M + 62, tx1 = 226, tyN = 216;
     const int16_t tw = Canvas::textWidth(nxt, FONT_L_BODY);
@@ -452,7 +452,7 @@ void CalendarScreen::render(Canvas& c, const Theme& t) {
     char title[24], mon[6], wd[6];
     strftime(wd, sizeof wd, "%a", &tm);
     strftime(mon, sizeof mon, "%b", &tm);
-    snprintf(title, sizeof title, "%s \xC2\xB7 %d %s", wd, tm.tm_mday, mon);
+    snprintf_P(title, sizeof title, PSTR("%s \xC2\xB7 %d %s"), wd, tm.tm_mday, mon);
     header(c, t, title, iconCalendar, t.highlight, wifiBars());
     if (!b.events) {
         emptyState(c, t, iconCalendar, PSTR("No upcoming events"),
@@ -480,8 +480,8 @@ void CalendarScreen::render(Canvas& c, const Theme& t) {
     time_t ts = time_t(e.start);
     localtime_r(&ts, &st);
     char meta[48];
-    if (e.where[0]) snprintf(meta, sizeof meta, "%02d:%02d  \xC2\xB7  %s", st.tm_hour, st.tm_min, e.where);
-    else snprintf(meta, sizeof meta, "%02d:%02d", st.tm_hour, st.tm_min);
+    if (e.where[0]) snprintf_P(meta, sizeof meta, PSTR("%02d:%02d  \xC2\xB7  %s"), st.tm_hour, st.tm_min, e.where);
+    else snprintf_P(meta, sizeof meta, PSTR("%02d:%02d"), st.tm_hour, st.tm_min);
     Canvas::ellipsize(meta, FONT_L_BODY, 150, fit, sizeof fit);
     c.text(M + 14, int16_t(cy0 + 57), fit, FONT_L_BODY, t.text2);
     // countdown ring (within the hour)
@@ -491,7 +491,7 @@ void CalendarScreen::render(Canvas& c, const Theme& t) {
     c.setOpacity(255);
     if (mins > 0 && mins <= 60) c.arcGradient(rx, ry, rr, 3.5f, -90, -90 + 360.f * (1 - mins / 60.f), t.accent2, t.highlight);
     char nb[16];
-    if (mins > 0 && mins < 100) snprintf(nb, sizeof nb, "%ld", mins); else if (mins > 0) snprintf(nb, sizeof nb, "%ldh", mins / 60);
+    if (mins > 0 && mins < 100) snprintf_P(nb, sizeof nb, PSTR("%ld"), mins); else if (mins > 0) snprintf_P(nb, sizeof nb, PSTR("%ldh"), mins / 60);
     else strcpy(nb, "0");
     c.text(int16_t(rx), int16_t(ry + 3), nb, FONT_L_NUM_S, t.text, Align::Center);
     c.text(int16_t(rx), int16_t(ry + 14), mins >= 100 ? "" : "MIN", FONT_L_MICRO, t.text3, Align::Center);
@@ -523,7 +523,7 @@ void CalendarScreen::render(Canvas& c, const Theme& t) {
         c.fillRoundRect(X(nh) - 1, sy - 4, 2.4f, 14, 1.2f, t.highlight);
     }
     for (int h = 8; h <= 20; h += 4) {
-        char hb[4]; snprintf(hb, sizeof hb, "%02d", h);
+        char hb[4]; snprintf_P(hb, sizeof hb, PSTR("%02d"), h);
         c.text(int16_t(X(h)), int16_t(sy + 20), hb, FONT_L_LABEL, t.text3, h == 8 ? Align::Left : (h == 20 ? Align::Right : Align::Center), 1);
     }
     // reminder pill: the first all-day event today (birthdays, bills, holidays)
@@ -560,13 +560,13 @@ void CalendarScreen::render(Canvas& c, const Theme& t) {
         time_t es = time_t(ev.start);
         struct tm et;
         localtime_r(&es, &et);
-        char tb[8]; snprintf(tb, sizeof tb, "%02d:%02d", et.tm_hour, et.tm_min);
+        char tb[8]; snprintf_P(tb, sizeof tb, PSTR("%02d:%02d"), et.tm_hour, et.tm_min);
         c.text(M + 16, int16_t(y), tb, FONT_L_BODY, done ? t.text3 : t.text2);
         Canvas::ellipsize(ev.title, FONT_L_BODY, next && mins > 0 ? 82 : 150, fit, sizeof fit);
         c.text(M + 58, int16_t(y), fit, FONT_L_BODY, done ? t.text3 : t.text);
         if (next && mins > 0 && mins < 600) {
             char in[24];
-            if (mins < 60) snprintf(in, sizeof in, "IN %ld MIN", mins); else snprintf(in, sizeof in, "IN %ldH", mins / 60);
+            if (mins < 60) snprintf_P(in, sizeof in, PSTR("IN %ld MIN"), mins); else snprintf_P(in, sizeof in, PSTR("IN %ldH"), mins / 60);
             label(c, 226, int16_t(y), in, t.highlight, Align::Right);
         }
     }

@@ -101,12 +101,12 @@ void WeatherScreen::render(Canvas& c, const Theme& t) {
 
     // hero temperature: 76 px gradient digits + drawn degree ring
     char buf[48];
-    if (w.valid) snprintf(buf, sizeof buf, "%d", int(lroundf(w.temp))); else strcpy(buf, "--");
+    if (w.valid) snprintf_P(buf, sizeof buf, PSTR("%d"), int(lroundf(w.temp))); else strcpy(buf, "--");
     const int16_t tw = hero(c, t, M - 3, 126, buf, FONT_L_CLOCK_XL);
     degree(c, M - 3 + tw + 8, 76, 5.5f, t.text);
     if (w.valid) {
         int16_t x = c.text(M, 150, wxWord(w.code, w.isDay), FONT_L_TITLE, t.text);
-        snprintf(buf, sizeof buf, "Feels %d\xC2\xB0", int(lroundf(w.feels)));
+        snprintf_P(buf, sizeof buf, PSTR("Feels %d\xC2\xB0"), int(lroundf(w.feels)));
         c.text(int16_t(M + x + 8), 150, buf, FONT_L_BODY, t.text2);
     } else {
         c.text(M, 150, g_state.net.mode == NetMode::Online ? FS("Fetching weather") : FS("Waiting for Wi-Fi"), FONT_L_BODY, t.text2);
@@ -120,16 +120,16 @@ void WeatherScreen::render(Canvas& c, const Theme& t) {
         const int16_t x = int16_t(M + i * cw);
         char v[12] = "--", unit[8] = "", lab[20];
         uint16_t vc = t.text;
-        if (i == 0) { if (w.valid) snprintf(v, sizeof v, "%u%%", w.humidity); flashStr(lab, sizeof lab, PSTR("HUMIDITY")); }
+        if (i == 0) { if (w.valid) snprintf_P(v, sizeof v, PSTR("%u%%"), w.humidity); flashStr(lab, sizeof lab, PSTR("HUMIDITY")); }
         else if (i == 1) {
-            if (w.valid) { snprintf(v, sizeof v, "%d", int(lroundf(w.wind))); strcpy(unit, "km/h"); }
-            snprintf(lab, sizeof lab, "WIND %s", w.valid ? compass(w.windDir) : "");
+            if (w.valid) { snprintf_P(v, sizeof v, PSTR("%d"), int(lroundf(w.wind))); strcpy(unit, "km/h"); }
+            snprintf_P(lab, sizeof lab, PSTR("WIND %s"), w.valid ? compass(w.windDir) : "");
         } else if (rainy) {
-            snprintf(v, sizeof v, "%u%%", w.rainProb); flashStr(lab, sizeof lab, PSTR("RAIN"));
+            snprintf_P(v, sizeof v, PSTR("%u%%"), w.rainProb); flashStr(lab, sizeof lab, PSTR("RAIN"));
             vc = w.rainProb >= 60 ? t.rain : t.text;
         } else {
-            if (w.valid) snprintf(v, sizeof v, "%d", int(lroundf(w.uv)));
-            snprintf(lab, sizeof lab, "UV %s", w.valid ? uvWord(w.uv) : "");
+            if (w.valid) snprintf_P(v, sizeof v, PSTR("%d"), int(lroundf(w.uv)));
+            snprintf_P(lab, sizeof lab, PSTR("UV %s"), w.valid ? uvWord(w.uv) : "");
             vc = w.valid && w.uv >= 6 ? t.warn : t.text;
         }
         int16_t vw = c.text(x, 182, v, FONT_L_NUM_S, vc);
@@ -206,8 +206,8 @@ void WeatherScreen::render(Canvas& c, const Theme& t) {
     }
     // peak label above the ribbon, left aligned
     const int ph = 6 + imax;
-    if (cfg.h24) snprintf(buf, sizeof buf, "PEAK %d\xC2\xB0 AT %02d:00", int(lroundf(vmax)), ph);
-    else snprintf(buf, sizeof buf, "PEAK %d\xC2\xB0 AT %d %s", int(lroundf(vmax)), ph % 12 ? ph % 12 : 12, ph < 12 ? "AM" : "PM");
+    if (cfg.h24) snprintf_P(buf, sizeof buf, PSTR("PEAK %d\xC2\xB0 AT %02d:00"), int(lroundf(vmax)), ph);
+    else snprintf_P(buf, sizeof buf, PSTR("PEAK %d\xC2\xB0 AT %d %s"), int(lroundf(vmax)), ph % 12 ? ph % 12 : 12, ph < 12 ? "AM" : "PM");
     label(c, M, 211, buf, t.text3);
 }
 
@@ -252,7 +252,7 @@ void AirScreen::render(Canvas& c, const Theme& t) {
         c.fillCircle(mx, my, 4.0f, t.text);
     }
     label(c, int16_t(cx), 86, "NAQI", t.text3, Align::Center);
-    if (ok) snprintf(buf, sizeof buf, "%d", a.naqi); else strcpy(buf, "--");
+    if (ok) snprintf_P(buf, sizeof buf, PSTR("%d"), a.naqi); else strcpy(buf, "--");
     hero(c, t, int16_t(cx), 120, buf, FONT_L_NUM_L, Align::Center);
     const char* bname = ok ? aqiShortName(bi) : "WAITING";
     int16_t bw_ = Canvas::textWidth(bname, FONT_L_LABEL, 1);
@@ -264,9 +264,9 @@ void AirScreen::render(Canvas& c, const Theme& t) {
     const P ps[2] = {{50, "PM2.5", a.pm25, 60}, {104, "PM10", a.pm10, 100}};
     for (const P& p : ps) {
         label(c, int16_t(x0), p.y, p.name, t.text3);
-        snprintf(buf, sizeof buf, "/ %d", p.lim);
+        snprintf_P(buf, sizeof buf, PSTR("/ %d"), p.lim);
         label(c, int16_t(x1), p.y, buf, t.text3, Align::Right);
-        if (ok) snprintf(buf, sizeof buf, "%d", int(lroundf(p.val))); else strcpy(buf, "--");
+        if (ok) snprintf_P(buf, sizeof buf, PSTR("%d"), int(lroundf(p.val))); else strcpy(buf, "--");
         int16_t vw = c.text(int16_t(x0 - 1), int16_t(p.y + 25), buf, FONT_L_NUM_M, t.text);
         c.text(int16_t(x0 + vw + 3), int16_t(p.y + 25), "\xC2\xB5g/m\xC2\xB3", FONT_L_BODY, t.text3);
         c.setOpacity(217);
@@ -289,7 +289,7 @@ void AirScreen::render(Canvas& c, const Theme& t) {
     // 24 h trend: bars coloured by band, last bar = now
     label(c, M, 189, "LAST 24 H", t.text3);
     if (a.histCount == 24) {
-        snprintf(buf, sizeof buf, "PEAK %d \xC2\xB7 %02u:00", a.peak, a.peakHour);
+        snprintf_P(buf, sizeof buf, PSTR("PEAK %d \xC2\xB7 %02u:00"), a.peak, a.peakHour);
         label(c, 226, 189, buf, t.text3, Align::Right);
         const float ty0 = 196, ty1 = 226, bwid = 6.0f, gap = 2.83f;
         const float hi = a.peak > 100 ? float(a.peak) : 100.f;

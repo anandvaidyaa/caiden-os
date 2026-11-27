@@ -50,8 +50,8 @@ static void ringGauge(Canvas& c, const Theme& t, float cx, float cy, float r, fl
     }
 }
 static void fmtMS(char* o, size_t n, uint32_t s) {
-    if (s >= 3600) snprintf(o, n, "%lu:%02lu:%02lu", (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60), (unsigned long)(s % 60));
-    else snprintf(o, n, "%02lu:%02lu", (unsigned long)(s / 60), (unsigned long)(s % 60));
+    if (s >= 3600) snprintf_P(o, n, PSTR("%lu:%02lu:%02lu"), (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60), (unsigned long)(s % 60));
+    else snprintf_P(o, n, PSTR("%02lu:%02lu"), (unsigned long)(s / 60), (unsigned long)(s % 60));
 }
 
 // ---- header icons (design2/caiden_ui_ext.py)
@@ -142,13 +142,13 @@ void ProductivityScreen::render(Canvas& c, const Theme& t) {
     c.setOpacity(179);
     c.fillRect(M, int16_t(by), 212, 1, t.stroke);
     c.setOpacity(255);
-    if (f.phase() != PomoPhase::Idle) snprintf(buf, sizeof buf, "TODAY \xC2\xB7 SESSION %u OF 4", f.session());
-    else snprintf(buf, sizeof buf, "TODAY");
+    if (f.phase() != PomoPhase::Idle) snprintf_P(buf, sizeof buf, PSTR("TODAY \xC2\xB7 SESSION %u OF 4"), f.session());
+    else snprintf_P(buf, sizeof buf, PSTR("TODAY"));
     label(c, M, int16_t(by + 18), buf, t.text3);
     uint16_t tm_ = f.todayMinutes();
     char hb[8], mb[8];
-    snprintf(hb, sizeof hb, "%u", tm_ / 60);
-    snprintf(mb, sizeof mb, "%02u", tm_ % 60);
+    snprintf_P(hb, sizeof hb, PSTR("%u"), tm_ / 60);
+    snprintf_P(mb, sizeof mb, PSTR("%02u"), tm_ % 60);
     float x = M - 1;
     x += c.text(int16_t(x), int16_t(by + 48), hb, FONT_L_NUM_L, t.text) + 2;
     x += c.text(int16_t(x), int16_t(by + 48), "h", FONT_L_BODY, t.text2) + 7;
@@ -236,25 +236,25 @@ void WorldScreen::update(uint32_t now, DirtySet& d) {
 }
 
 static void fmtOffset(char* o, size_t n, int16_t d) {
-    snprintf(o, n, "%c%d:%02d", d >= 0 ? '+' : '-', abs(d) / 60, abs(d) % 60);
+    snprintf_P(o, n, PSTR("%c%d:%02d"), d >= 0 ? '+' : '-', abs(d) / 60, abs(d) % 60);
 }
 
 void WorldScreen::render(Canvas& c, const Theme& t) {
     header(c, t, "World clock", nullptr, t.highlight, wifiBars());
     const Config& cfg = g_config.get();
     char buf[40], city[34];
-    snprintf(city, sizeof city, "%s", cfg.city);
+    snprintf_P(city, sizeof city, PSTR("%s"), cfg.city);
     for (char* p = city; *p; p++) *p = toupper(uint8_t(*p));
     label(c, M, 50, city, t.text2);
     char off[12];
     fmtOffset(off, sizeof off, utcDiff_);
-    snprintf(buf, sizeof buf, "%s \xC2\xB7 UTC%s", abbr_, off);
+    snprintf_P(buf, sizeof buf, PSTR("%s \xC2\xB7 UTC%s"), abbr_, off);
     label(c, 226, 50, buf, t.text3, Align::Right);
     // local hero: hh:mm (12/24 h as configured) in the clock face, weekday + weather beside it
     int h = (localMin_ / 60) % 24, m = localMin_ % 60;
     char hh[8], mm[8];
-    if (cfg.h24) snprintf(hh, sizeof hh, "%02d", h); else snprintf(hh, sizeof hh, "%d", h % 12 ? h % 12 : 12);
-    snprintf(mm, sizeof mm, "%02d", m);
+    if (cfg.h24) snprintf_P(hh, sizeof hh, PSTR("%02d"), h); else snprintf_P(hh, sizeof hh, PSTR("%d"), h % 12 ? h % 12 : 12);
+    snprintf_P(mm, sizeof mm, PSTR("%02d"), m);
     const ClockGeom g = clockLayout(FONT_L_CLOCK_L, 0, 106, uint8_t(strlen(hh)));
     clock(c, t, M - 2 - g.x0, 106, hh, mm, FONT_L_CLOCK_L);
     c.text(226, 106, weekday_, FONT_L_BODY, t.text2, Align::Right);
@@ -281,8 +281,8 @@ void WorldScreen::render(Canvas& c, const Theme& t) {
         c.glow(mxp, byy, 8, mc, 110);
         c.fillCircle(mxp, byy, 3.0f, (t.dark || !night) ? mc : t.accent);
         int ch = mins / 60, cm = mins % 60;
-        if (cfg.h24) snprintf(buf, sizeof buf, "%02d:%02d", ch, cm);
-        else snprintf(buf, sizeof buf, "%d:%02d", ch % 12 ? ch % 12 : 12, cm);
+        if (cfg.h24) snprintf_P(buf, sizeof buf, PSTR("%02d:%02d"), ch, cm);
+        else snprintf_P(buf, sizeof buf, PSTR("%d:%02d"), ch % 12 ? ch % 12 : 12, cm);
         c.text(226, bl, buf, FONT_L_NUM_S, night ? t.text3 : t.text, Align::Right);
     }
 }
@@ -313,21 +313,21 @@ void CricketScreen::render(Canvas& c, const Theme& t) {
                    g_state.bridge.online ? PSTR("Live scores appear here during matches") : PSTR("Cloud relay offline"));
         return;
     }
-    snprintf(title, sizeof title, "%s \xC2\xB7 %s inn", k.type[0] ? k.type : "Cricket", ORD[k.innings > 4 ? 4 : k.innings]);
+    snprintf_P(title, sizeof title, PSTR("%s \xC2\xB7 %s inn"), k.type[0] ? k.type : "Cricket", ORD[k.innings > 4 ? 4 : k.innings]);
     header(c, t, title, nullptr, t.bad, wifiBars(), "LIVE");
     const Innings& cur = k.inn[k.innings >= 2 ? 1 : 0];
     // teams line
     int16_t tw = c.text(M, 52, k.t1, FONT_L_TITLE, t.text);
     char buf[48];
-    snprintf(buf, sizeof buf, "VS %s", k.t2);
+    snprintf_P(buf, sizeof buf, PSTR("VS %s"), k.t2);
     label(c, int16_t(M + tw + 8), 51, buf, t.text3);
-    if (k.target) { snprintf(buf, sizeof buf, "TARGET %d", k.target); label(c, 226, 51, buf, t.text2, Align::Right); }
+    if (k.target) { snprintf_P(buf, sizeof buf, PSTR("TARGET %d"), k.target); label(c, 226, 51, buf, t.text2, Align::Right); }
     // hero score + overs
-    snprintf(buf, sizeof buf, "%d/%d", cur.runs, cur.wkts);
+    snprintf_P(buf, sizeof buf, PSTR("%d/%d"), cur.runs, cur.wkts);
     int16_t sw_ = hero(c, t, M - 2, 90, buf, FONT_L_NUM_L);
     const bool ovKnown = cur.overs >= 0;           // the free Cricinfo feed has no overs (-1)
     if (ovKnown) {
-        snprintf(buf, sizeof buf, "%.1f ov", cur.overs);
+        snprintf_P(buf, sizeof buf, PSTR("%.1f ov"), cur.overs);
         c.text(int16_t(M + sw_ + 4), 90, buf, FONT_L_BODY, t.text2);
     }
     const int balls = ovKnown ? oversToBalls(cur.overs) : 0;
@@ -335,17 +335,17 @@ void CricketScreen::render(Canvas& c, const Theme& t) {
     if (k.target && k.need > 0) {
         // chase ring: runs so far / target
         ringGauge(c, t, 199, 80, 24, 4, float(cur.runs) / k.target, -90, 360, t.accent, t.highlight);
-        snprintf(buf, sizeof buf, "%d", k.need);
+        snprintf_P(buf, sizeof buf, PSTR("%d"), k.need);
         c.text(199, 83, buf, FONT_L_NUM_S, t.text, Align::Center);
         c.text(199, 95, "NEED", FONT_L_MICRO, t.text3, Align::Center);
         // equation line ("Need 40 runs" when the feed has no balls left)
         float x = M;
         x += c.text(int16_t(x), 112, "Need ", FONT_L_BODY, t.text2);
-        snprintf(buf, sizeof buf, "%d", k.need);
+        snprintf_P(buf, sizeof buf, PSTR("%d"), k.need);
         x += c.text(int16_t(x), 112, buf, FONT_L_BODY, t.highlight);
         if (k.balls) {
             x += c.text(int16_t(x), 112, " off ", FONT_L_BODY, t.text2);
-            snprintf(buf, sizeof buf, "%d", k.balls);
+            snprintf_P(buf, sizeof buf, PSTR("%d"), k.balls);
             x += c.text(int16_t(x), 112, buf, FONT_L_BODY, t.highlight);
             c.text(int16_t(x), 112, " balls", FONT_L_BODY, t.text2);
         } else c.text(int16_t(x), 112, " runs", FONT_L_BODY, t.text2);
@@ -364,11 +364,11 @@ void CricketScreen::render(Canvas& c, const Theme& t) {
             c.setOpacity(255);
             float wv = 150 * rates[i] / scale;
             if (wv > 4) c.fillRoundRect(M + 34, y, wv, 4, 2, cols[i]);
-            snprintf(buf, sizeof buf, "%.2f", rates[i]);
+            snprintf_P(buf, sizeof buf, PSTR("%.2f"), rates[i]);
             c.text(226, int16_t(y + 7), buf, FONT_L_LABEL, t.text, Align::Right);
         }
     } else if (ovKnown) {
-        snprintf(buf, sizeof buf, "Run rate %.2f", crr);
+        snprintf_P(buf, sizeof buf, PSTR("Run rate %.2f"), crr);
         c.text(M, 112, buf, FONT_L_BODY, t.text2);
     }
     // innings card (the free feed has no batters / ball-by-ball, so the card lists both innings)
@@ -381,10 +381,10 @@ void CricketScreen::render(Canvas& c, const Theme& t) {
         bool batting = &in == &cur;
         if (batting) { c.glow(M + 3, y - 4, 7, t.highlight, 120); c.fillCircle(M + 3, y - 4, 2.5f, t.highlight); }
         c.text(M + 12, int16_t(y), in.team, FONT_L_BODY, batting ? t.text : t.text2);
-        snprintf(buf, sizeof buf, "%d/%d", in.runs, in.wkts);
+        snprintf_P(buf, sizeof buf, PSTR("%d/%d"), in.runs, in.wkts);
         c.text(186, int16_t(y), buf, FONT_L_BODY, t.text, Align::Right);
         if (in.overs >= 0) {
-            snprintf(buf, sizeof buf, "(%.1f)", in.overs);
+            snprintf_P(buf, sizeof buf, PSTR("(%.1f)"), in.overs);
             c.text(226, int16_t(y), buf, FONT_L_BODY, t.text3, Align::Right);
         }
     }
@@ -420,7 +420,7 @@ void SystemScreen::render(Canvas& c, const Theme& t) {
     Canvas::ellipsize(online ? n.ssid : "Offline", FONT_L_HEAD, 176, fit, sizeof fit);
     c.text(M + 42, int16_t(hy + 22), fit, FONT_L_HEAD, t.text);
     if (online) {
-        snprintf(buf, sizeof buf, "%d", n.rssi);
+        snprintf_P(buf, sizeof buf, PSTR("%d"), n.rssi);
         int16_t vw = c.text(M + 42, int16_t(hy + 46), buf, FONT_L_NUM_S, t.text2);
         c.text(int16_t(M + 42 + vw + 4), int16_t(hy + 46), "dBm", FONT_L_BODY, t.text3);
         const char* q = n.rssi > -67 ? "GOOD" : (n.rssi > -77 ? "FAIR" : "WEAK");
@@ -428,12 +428,12 @@ void SystemScreen::render(Canvas& c, const Theme& t) {
     }
     // 2x2 facts on hairlines: IP, uptime, heap, settings-page password
     char ip[20], up[20], heap[20];
-    snprintf(ip, sizeof ip, "%s", online ? n.ip : "-");
+    snprintf_P(ip, sizeof ip, PSTR("%s"), online ? n.ip : "-");
     uint32_t s = millis() / 1000;
-    if (s >= 86400) snprintf(up, sizeof up, "%lud %02luh", (unsigned long)(s / 86400), (unsigned long)(s / 3600 % 24));
-    else snprintf(up, sizeof up, "%luh %02lum", (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60));
+    if (s >= 86400) snprintf_P(up, sizeof up, PSTR("%lud %02luh"), (unsigned long)(s / 86400), (unsigned long)(s / 3600 % 24));
+    else snprintf_P(up, sizeof up, PSTR("%luh %02lum"), (unsigned long)(s / 3600), (unsigned long)(s / 60 % 60));
     const uint32_t fh = ESP.getFreeHeap();
-    snprintf(heap, sizeof heap, "%lu.%lu KB", (unsigned long)(fh / 1024), (unsigned long)(fh % 1024 * 10 / 1024));
+    snprintf_P(heap, sizeof heap, PSTR("%lu.%lu KB"), (unsigned long)(fh / 1024), (unsigned long)(fh % 1024 * 10 / 1024));
     struct Tile { const char* lab; const char* val; float frac; };
     const Tile tiles[4] = {{"IP ADDRESS", ip, -1}, {"UPTIME", up, -1}, {"FREE HEAP", heap, fh / 81920.f}, {"PASSWORD", g_net.webPassword(), -1}};   // for caiden.local
     hairline(c, t, 98);

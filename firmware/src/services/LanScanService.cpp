@@ -109,12 +109,12 @@ void LanScanService::finish() {
             LanDevice& d = l.dev[l.devN++];
             d.ip = found_[i].ip;
             d.isNew = isNew[i];
-            if (router) snprintf(d.name, sizeof d.name, "Router");
-            else snprintf(d.name, sizeof d.name, "%02x:%02x:%02x", found_[i].mac[0], found_[i].mac[1], found_[i].mac[2]);
+            if (router) snprintf_P(d.name, sizeof d.name, PSTR("Router"));
+            else snprintf_P(d.name, sizeof d.name, PSTR("%02x:%02x:%02x"), found_[i].mac[0], found_[i].mac[1], found_[i].mac[2]);
         }
     }
     const time_t t = time(nullptr);
     g_state.bridge.lnAt = t > 1600000000 ? uint32_t(t) : 0;
     g_state.bridge.version++;
-    Serial.printf("[lan] %u devices on the network (%u new)\n", unsigned(foundN_), unsigned(newN));
+    Serial.printf_P(PSTR("[lan] %u devices on the network (%u new)\n"), unsigned(foundN_), unsigned(newN));
 }

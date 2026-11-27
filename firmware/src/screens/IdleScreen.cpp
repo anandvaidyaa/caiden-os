@@ -61,7 +61,7 @@ void IdleScreen::render(Canvas& c, const Theme& t) {
     char hh[4], mm[4]; bool am;
     Config& cfg = g_config.get();
     g_clock.hhmm(hh, mm, cfg.h24, am);
-    char s[8]; snprintf(s, sizeof s, "%s:%s", hh, mm);
+    char s[8]; snprintf_P(s, sizeof s, PSTR("%s:%s"), hh, mm);
     const uint16_t timeCol = mix565(t.bg, t.text, 158);      // 62 %
     c.text(120, 142, s, FONT_NUM64, timeCol, Align::Center);
     char date[24];

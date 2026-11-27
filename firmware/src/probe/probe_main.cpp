@@ -45,7 +45,7 @@ static void drawCalibration(Canvas& c) {
     c.line(30, 178, 210, 168, 2, WARN);
     c.text(120, 200, "Text 15 \xC2\xB7 smooth anti-aliasing", FONT_BODY, TXT, Align::Center);
     char b[48];
-    snprintf(b, sizeof b, "frame %lu ms  heap %u", (unsigned long)(lastFrameUs / 1000), ESP.getFreeHeap());
+    snprintf_P(b, sizeof b, PSTR("frame %lu ms  heap %u"), (unsigned long)(lastFrameUs / 1000), ESP.getFreeHeap());
     c.text(120, 220, b, FONT_MONO, SUB, Align::Center);
 }
 
@@ -57,16 +57,16 @@ static void drawTouch(Canvas& c) {
     c.ring(120, 110, 44, 2, pressed ? TXT : FAINT);
     c.text(120, 118, pressed ? "PRESSED" : "touch", FONT_BODYM, TXT, Align::Center);
     char b[48];
-    snprintf(b, sizeof b, "GPIO4 = %d   presses %lu", lastIn, (unsigned long)pressCount);
+    snprintf_P(b, sizeof b, PSTR("GPIO4 = %d   presses %lu"), lastIn, (unsigned long)pressCount);
     c.text(120, 186, b, FONT_MONO, TXT, Align::Center);
-    snprintf(b, sizeof b, "GPIO16 = %d   A0 = %d", lastIn16, a0);
+    snprintf_P(b, sizeof b, PSTR("GPIO16 = %d   A0 = %d"), lastIn16, a0);
     c.text(120, 206, b, FONT_MONO, SUB, Align::Center);
 }
 
 static void drawBacklight(Canvas& c) {
     c.fill(BG);
     c.text(120, 40, "BACKLIGHT", FONT_LABEL, SUB, Align::Center, 1);
-    char b[16]; snprintf(b, sizeof b, "%u", brightness);
+    char b[16]; snprintf_P(b, sizeof b, PSTR("%u"), brightness);
     c.text(120, 128, b, FONT_NUM44, TXT, Align::Center);
     c.fillRoundRect(30, 160, 180, 6, 3, FAINT);
     c.fillRoundRect(30, 160, 180.f * brightness / 255.f, 6, 3, WARN);
@@ -79,7 +79,7 @@ static void drawBench(Canvas& c) {
     c.fill(BG);
     c.glow(60 + 40 * sinf(ph), 70, 110, rgb(0x1A2A55), 200);
     c.arc(120, 120, 70, 6, -90, -90 + fmodf(ph * 60, 360), ACC);
-    char b[32]; snprintf(b, sizeof b, "%lu ms", (unsigned long)(lastFrameUs / 1000));
+    char b[32]; snprintf_P(b, sizeof b, PSTR("%lu ms"), (unsigned long)(lastFrameUs / 1000));
     c.text(120, 132, b, FONT_NUM28, TXT, Align::Center);
     c.text(120, 156, "full-frame render", FONT_SMALL, SUB, Align::Center);
     ph += 0.15f;
@@ -95,9 +95,9 @@ static void render() {
 }
 
 static void status() {
-    Serial.printf("{\"page\":%u,\"dc\":%d,\"rst\":%d,\"cs\":%d,\"bl\":%d,\"blActiveLow\":%d,\"rot\":%u,"
+    Serial.printf_P(PSTR("{\"page\":%u,\"dc\":%d,\"rst\":%d,\"cs\":%d,\"bl\":%d,\"blActiveLow\":%d,\"rot\":%u,"
                   "\"invert\":%d,\"spiHz\":%lu,\"mode\":%u,\"bright\":%u,\"gpio4\":%d,\"gpio16\":%d,\"a0\":%d,"
-                  "\"presses\":%lu,\"frameMs\":%lu,\"heap\":%u}\n",
+                  "\"presses\":%lu,\"frameMs\":%lu,\"heap\":%u}\n"),
                   page, cfg.dc, cfg.rst, cfg.cs, cfg.bl, cfg.blActiveLow, cfg.rotation, cfg.invert,
                   (unsigned long)cfg.spiHz, cfg.spiMode, brightness, lastIn, lastIn16, a0,
                   (unsigned long)pressCount, (unsigned long)(lastFrameUs / 1000), ESP.getFreeHeap());
@@ -126,7 +126,7 @@ void loop() {
     int in = digitalRead(4), in16 = digitalRead(16);
     a0 = analogRead(A0);
     if (in != lastIn) {
-        if (lastIn != -1) Serial.printf("[IN] gpio4 %d -> %d at %lu ms\n", lastIn, in, millis());
+        if (lastIn != -1) Serial.printf_P(PSTR("[IN] gpio4 %d -> %d at %lu ms\n"), lastIn, in, millis());
         if (lastIn == 1 && in == 0 && millis() - lastEdgeMs > 120) {
             pressCount++; lastEdgeMs = millis();
             if (page != 1) { page = (page + 1) % 4; }
@@ -135,7 +135,7 @@ void loop() {
         render();
     }
     if (in16 != lastIn16) {
-        if (lastIn16 != -1) Serial.printf("[IN] gpio16 %d -> %d\n", lastIn16, in16);
+        if (lastIn16 != -1) Serial.printf_P(PSTR("[IN] gpio16 %d -> %d\n"), lastIn16, in16);
         lastIn16 = in16;
     }
 

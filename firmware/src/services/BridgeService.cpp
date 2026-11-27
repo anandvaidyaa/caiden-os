@@ -28,7 +28,7 @@ static uint16_t hex565(const char* s) {
     return rgb(v);
 }
 
-static void copy(char* dst, size_t n, const char* src) { snprintf(dst, n, "%s", src ? src : ""); }
+static void copy(char* dst, size_t n, const char* src) { snprintf_P(dst, n, PSTR("%s"), src ? src : ""); }
 
 // RFC 3986 percent-encoding for the feed settings in the /state.json query
 static void addEncoded(String& u, const char* s) {
@@ -57,7 +57,7 @@ bool BridgeService::getJson(const String& path, uint16_t timeoutMs, JsonDocument
     if (code != HTTP_CODE_OK) { http.end(); return false; }
     DeserializationError err = deserializeJson(doc, http.getStream());
     http.end();
-    if (err) { Serial.printf("[relay] json: %s\n", err.c_str()); return false; }
+    if (err) { Serial.printf_P(PSTR("[relay] json: %s\n"), err.c_str()); return false; }
     return true;
 }
 
@@ -70,6 +70,7 @@ void BridgeService::okNow() {
 }
 
 void BridgeService::relayChanged() {
+    spClose();                              // the Spotify connection goes to the old address
     stateNext_ = spNext_ = millis();
     fails_ = 0;
     hash_[0] = 0;
@@ -185,13 +186,79 @@ void BridgeService::applyState(JsonDocument& doc) {
     }
     const char* h = doc["h"] | "";
     if (strcmp(h, hash_) != 0) { copy(hash_, sizeof hash_, h); b.version++; }   // redraw only on change
-    Serial.printf("[relay] %u markets, %u headlines%s\n", b.markets, b.news, k.live ? ", live cricket" : "");
+    Serial.printf_P(PSTR("[relay] %u markets, %u headlines%s\n"), b.markets, b.news, k.live ? ", live cricket" : "");
 }
 
 // ---------------------------------------------------------------- Spotify
-bool BridgeService::fetchSpotify() {
-    JsonDocument doc;
-    if (!getJson(F("/sp.json"), 2500, doc)) return false;
+static const uint16_t SP_BODY_MAX = 512;   // a playing track is ~300 B of JSON
+static const uint32_t SP_TIMEOUT_MS = 5000;
+
+void BridgeService::spClose() {
+    if (spCli_.connected()) spCli_.stop();
+    if (spBody_) { free(spBody_); spBody_ = nullptr; }
+    spSt_ = 0;
+}
+
+bool BridgeService::spStart() {
+    if (!spCli_.connected()) {                     // usually still open from the last poll (keep-alive)
+        String host = g_config.get().relay;
+        uint16_t port = 80;
+        const int colon = host.indexOf(':');
+        if (colon > 0) { port = uint16_t(host.substring(colon + 1).toInt()); host = host.substring(0, colon); }
+        spCli_.setTimeout(3000);
+        if (!spCli_.connect(host.c_str(), port)) { spClose(); return false; }
+        spCli_.setNoDelay(true);
+    }
+    String host = g_config.get().relay;
+    const int colon = host.indexOf(':');
+    if (colon > 0) host = host.substring(0, colon);
+    spCli_.printf_P(PSTR("GET /sp.json HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n"), host.c_str());
+    spSt_ = 1; spSince_ = millis();
+    spLineN_ = 0; spLen_ = -1; spCode_ = 0; spKeep_ = true; spGot_ = 0;
+    return true;
+}
+
+int8_t BridgeService::spPoll(uint32_t now) {
+    if (now - spSince_ > SP_TIMEOUT_MS) { spClose(); return -1; }
+    int budget = 600;                              // bytes per pass: a few hundred microseconds at most
+    while (budget-- > 0 && spCli_.available()) {
+        const int ch = spCli_.read();
+        if (ch < 0) break;
+        if (spSt_ == 1) {                          // headers, line by line (only the start of each line is kept)
+            if (ch == '\r') continue;
+            if (ch != '\n') { if (spLineN_ < sizeof spLine_ - 1) spLine_[spLineN_++] = char(ch); continue; }
+            spLine_[spLineN_] = 0;
+            const bool blank = spLineN_ == 0;
+            spLineN_ = 0;
+            if (!blank) {
+                if (!strncmp(spLine_, "HTTP/1.", 7)) spCode_ = int16_t(atoi(spLine_ + 9));
+                else if (!strncasecmp(spLine_, "Content-Length:", 15)) spLen_ = int16_t(atoi(spLine_ + 15));
+                else if (!strncasecmp(spLine_, "Connection: close", 17)) spKeep_ = false;
+                continue;
+            }
+            if (spCode_ != 200 || spLen_ <= 0 || spLen_ >= int16_t(SP_BODY_MAX)) { spClose(); return -1; }
+            spBody_ = (char*)malloc(size_t(spLen_) + 1);
+            if (!spBody_) { spClose(); return -1; }
+            spSt_ = 2;
+            continue;
+        }
+        spBody_[spGot_++] = char(ch);              // body
+        if (spGot_ >= uint16_t(spLen_)) {
+            JsonDocument doc;
+            const DeserializationError err = deserializeJson(doc, spBody_, spGot_);
+            free(spBody_); spBody_ = nullptr;
+            spSt_ = 0;
+            if (!spKeep_) spCli_.stop();
+            if (err) return -1;
+            applySpotify(doc);
+            return 1;
+        }
+    }
+    if (!spCli_.connected() && !spCli_.available()) { spClose(); return -1; }
+    return 0;
+}
+
+void BridgeService::applySpotify(JsonDocument& doc) {
     BridgeData& b = g_state.bridge;
     SpotifyData& sp = b.sp;
     b.spSetup = !(doc["x"] | 0);
@@ -209,7 +276,6 @@ bool BridgeService::fetchSpotify() {
     copy(sp.artId, sizeof sp.artId, id);
     if (on && !sp.c1 && !sp.c2) { sp.c1 = hex565("#8A6BFF"); sp.c2 = hex565("#3FE0FF"); }   // until art colours arrive
     if (trackChanged) b.spVersion++;
-    return true;
 }
 
 // Album art: 120x120 RGB565 from the relay, streamed to flash; the dominant colours come as headers.
@@ -252,7 +318,7 @@ bool BridgeService::fetchArt(const char* id) {
     if (hex565(c1) || hex565(c2)) { sp.c1 = hex565(c1); sp.c2 = hex565(c2); }
     copy(sp.artReady, sizeof sp.artReady, id);
     g_state.bridge.spVersion++;
-    Serial.printf("[relay] artwork stored (%d B)\n", got);
+    Serial.printf_P(PSTR("[relay] artwork stored (%d B)\n"), got);
     return true;
 }
 
@@ -349,13 +415,13 @@ bool BridgeService::fetchFwMeta() {
         const String want = experimental::crypto::SHA256::hmac(msg, g_net.otaKey(), 32, 32);
         uint8_t diff = want.length() == 64 ? 0 : 1;
         for (size_t i = 0; i < 64 && !diff; i++) diff |= uint8_t(tolower(mac[i])) ^ uint8_t(tolower(want[i]));
-        if (diff) { Serial.printf("[fw] relay offers %s but it is not signed for this clock\n", v); ok = false; }
+        if (diff) { Serial.printf_P(PSTR("[fw] relay offers %s but it is not signed for this clock\n"), v); ok = false; }
     }
     if (ok) {
         copy(b.fwV, sizeof b.fwV, v);
         copy(b.fwMd5, sizeof b.fwMd5, md5);
         b.fwSize = size;
-        Serial.printf("[fw] update %s available (%lu B)\n", v, (unsigned long)size);
+        Serial.printf_P(PSTR("[fw] update %s available (%lu B)\n"), v, (unsigned long)size);
     }
     return true;
 }
@@ -368,10 +434,10 @@ bool BridgeService::requestInstall() {
 
 static void fwFail(const char* why) {
     OtaState& o = g_state.ota;
-    snprintf(o.err, sizeof o.err, "%s", why);
+    snprintf_P(o.err, sizeof o.err, PSTR("%s"), why);
     o.phase = OtaPhase::Failed;
     o.failedAt = millis();
-    Serial.printf("[fw] failed: %s (updater error %u)\n", why, unsigned(Update.getError()));
+    Serial.printf_P(PSTR("[fw] failed: %s (updater error %u)\n"), why, unsigned(Update.getError()));
     if (g_net.onOtaProgress) g_net.onOtaProgress();
 }
 
@@ -400,7 +466,8 @@ void BridgeService::installUpdate() {
     if (!metaOk || !b.fwV[0]) { fwFail("update not available"); return; }
     closeArt();
     g_miner.settingsChanged();   // drop the mining pool connection: the download needs that memory
-    Serial.printf("[fw] installing %s\n", b.fwV);
+    spClose();                   // and the kept-open Spotify connection
+    Serial.printf_P(PSTR("[fw] installing %s\n"), b.fwV);
     o.phase = OtaPhase::Receiving; o.pct = 0; o.err[0] = 0;
     if (g_net.onOtaProgress) g_net.onOtaProgress();
     if (!Update.begin(b.fwSize)) { fwFail("no room for update"); return; }
@@ -423,7 +490,7 @@ void BridgeService::installUpdate() {
         // let the Wi-Fi driver get its buffers back before asking for more data
         for (uint8_t w = 0; w < 100 && (ESP.getFreeHeap() < 4000 || ESP.getMaxFreeBlockSize() < 1600); w++) delay(20);
         if ((got / PIECE) % 4 == 0)
-            Serial.printf("[fw] t %lu ms at %u heap %u maxblk %u conn %d\n", millis(), unsigned(got),
+            Serial.printf_P(PSTR("[fw] t %lu ms at %u heap %u maxblk %u conn %d\n"), millis(), unsigned(got),
                           ESP.getFreeHeap(), ESP.getMaxFreeBlockSize(), int(c.connected()));
         bool keep = false;
         if (c.connected() || c.connect(host.c_str(), 80)) {
@@ -452,7 +519,7 @@ void BridgeService::installUpdate() {
                     lastData = millis();
                 }
             } else {
-                Serial.printf("[fw] piece at %u: HTTP %d, %ld B\n", unsigned(got), code, len);
+                Serial.printf_P(PSTR("[fw] piece at %u: HTTP %d, %ld B\n"), unsigned(got), code, len);
             }
             if (got - before != want) keep = false;
         }
@@ -468,7 +535,7 @@ void BridgeService::installUpdate() {
     c.stop();
     // end() commits only when every byte arrived and the MD5 matches; otherwise nothing changes
     if (got != b.fwSize) {
-        Serial.printf("[fw] stopped at %u of %u B\n", unsigned(got), unsigned(b.fwSize));
+        Serial.printf_P(PSTR("[fw] stopped at %u of %u B\n"), unsigned(got), unsigned(b.fwSize));
         Update.end(); fwFail("download interrupted");
         return;
     }
@@ -514,9 +581,12 @@ void BridgeService::loop(bool online) {
         else stateNext_ = retry();
         return;
     }
-    if (int32_t(now - spNext_) >= 0) {
-        if (fetchSpotify()) { okNow(); spNext_ = millis() + (!b.spSetup ? SP_OFF_MS : b.sp.on ? SP_ACTIVE_MS : SP_IDLE_MS); }
-        else spNext_ = retry();
+    if (spSt_) {                                     // Spotify reply arriving: collect what's there, never wait
+        const int8_t r = spPoll(now);
+        if (r > 0) { okNow(); spNext_ = millis() + (!b.spSetup ? SP_OFF_MS : b.sp.on ? SP_ACTIVE_MS : SP_IDLE_MS); }
+        else if (r < 0) spNext_ = retry();
+    } else if (int32_t(now - spNext_) >= 0) {
+        if (!spStart()) spNext_ = retry();
         return;
     }
     const SpotifyData& sp = b.sp;

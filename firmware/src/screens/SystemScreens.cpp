@@ -35,8 +35,8 @@ void UpdateScreen::render(Canvas& c, const Theme& t) {
     const float sweep = 360.f * (failed ? 100 : o.pct) / 100.f;
     if (sweep > 0.5f) c.arc(cx, cy, r, th, 270, 270 + sweep, col);   // from 12 o'clock, clockwise
     char buf[8];
-    if (failed) snprintf(buf, sizeof buf, "!");
-    else snprintf(buf, sizeof buf, "%u%%", unsigned(o.pct));
+    if (failed) snprintf_P(buf, sizeof buf, PSTR("!"));
+    else snprintf_P(buf, sizeof buf, PSTR("%u%%"), unsigned(o.pct));
     c.text(120, cy + 12, buf, FONT_NUM28, t.text, Align::Center);
     const char* l1 = failed ? "Update failed" : o.phase == OtaPhase::Restarting ? "Restarting" : "Receiving firmware";
     c.text(120, 204, l1, FONT_BODYM, failed ? t.bad : t.text, Align::Center);

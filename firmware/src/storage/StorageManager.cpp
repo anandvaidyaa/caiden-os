@@ -9,7 +9,7 @@ bool StorageManager::begin() {
     if (!LittleFS.format()) { Serial.println(F("[fs] format failed")); return false; }
     formatted_ = true;
     ready_ = LittleFS.begin();
-    Serial.printf("[fs] %s\n", ready_ ? "ready" : "mount failed after format");
+    Serial.printf_P(PSTR("[fs] %s\n"), ready_ ? "ready" : "mount failed after format");
     return ready_;
 }
 

@@ -32,10 +32,10 @@ static const uint32_t STA_RETRY_EVERY_MS = 60000, STA_TRY_WINDOW_MS = 30000;
 static WiFiEventHandler evJoin, evLeave;
 static void setupDiagnostics() {
     evJoin = WiFi.onSoftAPModeStationConnected([](const WiFiEventSoftAPModeStationConnected& e) {
-        Serial.printf("[ap] phone joined (aid %u)\n", e.aid);
+        Serial.printf_P(PSTR("[ap] phone joined (aid %u)\n"), e.aid);
     });
     evLeave = WiFi.onSoftAPModeStationDisconnected([](const WiFiEventSoftAPModeStationDisconnected& e) {
-        Serial.printf("[ap] phone left (aid %u)\n", e.aid);
+        Serial.printf_P(PSTR("[ap] phone left (aid %u)\n"), e.aid);
     });
 }
 
@@ -64,18 +64,18 @@ void NetworkManager::begin() {
     WiFi.hostname("caiden");
     ensureApPassword(c);
     webPassword();                       // settings-page password, shown on the System screen
-    snprintf(g_state.net.apName, sizeof g_state.net.apName, "CAIDEN-%04X", ESP.getChipId() & 0xFFFF);
-    snprintf(g_state.net.apPass, sizeof g_state.net.apPass, "%s", c.apPass);
+    snprintf_P(g_state.net.apName, sizeof g_state.net.apName, PSTR("CAIDEN-%04X"), ESP.getChipId() & 0xFFFF);
+    snprintf_P(g_state.net.apPass, sizeof g_state.net.apPass, PSTR("%s"), c.apPass);
     setupDiagnostics();
     setupRoutes();
     if (g_config.hasWifi()) {
         WiFi.mode(WIFI_STA);
         WiFi.setAutoReconnect(true);
         WiFi.begin(c.ssid, c.pass);
-        snprintf(g_state.net.ssid, sizeof g_state.net.ssid, "%s", c.ssid);
+        snprintf_P(g_state.net.ssid, sizeof g_state.net.ssid, PSTR("%s"), c.ssid);
         connectStart_ = millis();
         setMode(uint8_t(NetMode::Connecting));
-        Serial.printf("[net] connecting to %s\n", c.ssid);
+        Serial.printf_P(PSTR("[net] connecting to %s\n"), c.ssid);
     } else {
         startAP();
     }
@@ -115,7 +115,7 @@ void NetworkManager::startAP() {
     nextStaTry_ = millis() + STA_RETRY_EVERY_MS;
     strcpy(g_state.net.ip, "192.168.4.1");
     setMode(uint8_t(NetMode::SetupAP));
-    Serial.printf("[net] setup AP %s up\n", g_state.net.apName);
+    Serial.printf_P(PSTR("[net] setup AP %s up\n"), g_state.net.apName);
 }
 
 void NetworkManager::stopAP() {
@@ -200,7 +200,7 @@ void NetworkManager::loginFailed(uint32_t now) {
     if (++loginFails_ >= 5) {
         const uint8_t extra = loginFails_ - 5 > 4 ? 4 : loginFails_ - 5;
         lockUntil_ = now + (60000UL << extra);                 // 1, 2, 4, 8, 16 minutes
-        Serial.printf("[pw] %u wrong passwords: login locked for %lu s\n", loginFails_, (60000UL << extra) / 1000);
+        Serial.printf_P(PSTR("[pw] %u wrong passwords: login locked for %lu s\n"), loginFails_, (60000UL << extra) / 1000);
     }
 }
 
@@ -301,7 +301,7 @@ String NetworkManager::setupPageHtml(const char* note) {
         h += '>'; h += z[1]; h += F("</option>");
     }
     h += F("</select><button type='submit'>Save and connect</button></form></main></body></html>");
-    Serial.printf("[http] setup page %u bytes, %u networks\n", unsigned(h.length()), unsigned(k));
+    Serial.printf_P(PSTR("[http] setup page %u bytes, %u networks\n"), unsigned(h.length()), unsigned(k));
     return h;
 }
 
@@ -376,7 +376,7 @@ String formArg(const String& body, const char* key) {
 }
 
 void apClose(ApConn& a, const __FlashStringHelper* why) {
-    Serial.printf("[ap-http] #%u %s\n", a.id, String(why).c_str());
+    Serial.printf_P(PSTR("[ap-http] #%u %s\n"), a.id, String(why).c_str());
     a.c.stop();
     a.c = WiFiClient();
     a.req = String();
@@ -407,7 +407,7 @@ void NetworkManager::apHttpLoop() {
         slot->since = now;
         slot->id = ++apConnSeq;
         slot->used = true;
-        Serial.printf("[ap-http] #%u open from %s\n", slot->id, slot->c.remoteIP().toString().c_str());
+        Serial.printf_P(PSTR("[ap-http] #%u open from %s\n"), slot->id, slot->c.remoteIP().toString().c_str());
     }
 
     for (auto& a : apConns) {
@@ -447,7 +447,7 @@ void NetworkManager::apHttpLoop() {
         if (hp < 0) hp = a.req.indexOf(F("\r\nhost:"));
         String host;
         if (hp >= 0 && hp < hdrEnd) { host = a.req.substring(hp + 7, a.req.indexOf('\r', hp + 2)); host.trim(); }
-        Serial.printf("[ap-http] #%u %s %s host '%s'\n", a.id, post ? "POST" : "GET", path.c_str(), host.c_str());
+        Serial.printf_P(PSTR("[ap-http] #%u %s %s host '%s'\n"), a.id, post ? "POST" : "GET", path.c_str(), host.c_str());
 
         int code = 200;
         String page;
@@ -478,7 +478,7 @@ void NetworkManager::apHttpLoop() {
         size_t sent = a.c.write(head.c_str(), head.length());
         if (page.length()) sent += a.c.write(page.c_str(), page.length());
         const bool delivered = a.c.flush(3000);                   // until the phone acknowledged it
-        Serial.printf("[ap-http] #%u answered %d, %u of %u bytes, %s in %u ms\n", a.id, code, unsigned(sent),
+        Serial.printf_P(PSTR("[ap-http] #%u answered %d, %u of %u bytes, %s in %u ms\n"), a.id, code, unsigned(sent),
                       unsigned(head.length() + page.length()), delivered ? "delivered" : "NOT acknowledged",
                       unsigned(millis() - t0));
         apClose(a, F("done"));
@@ -491,14 +491,14 @@ void NetworkManager::setupRoutes() {
     static const char* HEADERS[] = {"X-Caiden", "X-Caiden-Auth", "X-Ota-Auth", "X-Ota-Size", "X-Ota-Md5"};
     server.collectHeaders(HEADERS, sizeof HEADERS / sizeof HEADERS[0]);
     server.addHook([](const String& method, const String& url, WiFiClient* client, ESP8266WebServer::ContentTypeFunction) {
-        Serial.printf("[http] %s %s from %s\n", method.c_str(), url.c_str(), client->remoteIP().toString().c_str());
+        Serial.printf_P(PSTR("[http] %s %s from %s\n"), method.c_str(), url.c_str(), client->remoteIP().toString().c_str());
         return ESP8266WebServer::CLIENT_REQUEST_CAN_CONTINUE;
     });
     server.on("/", HTTP_GET, [this] {
         // Setup network: the page itself for any host name, never a redirect. Redirects to
         // http://192.168.4.1/ looped on the phone (ERR_TOO_MANY_REDIRECTS, 2026-11-22).
         if (apActive_) {
-            Serial.printf("[http] / host '%s'\n", server.hostHeader().c_str());
+            Serial.printf_P(PSTR("[http] / host '%s'\n"), server.hostHeader().c_str());
             sendSetupPage(nullptr);
             return;
         }
@@ -520,7 +520,7 @@ void NetworkManager::setupRoutes() {
             if (w == 0) break;
             sent += w;
         }
-        Serial.printf("[http] / sent %u/%u bytes in %lu ms (connected=%d)\n", unsigned(sent), unsigned(len),
+        Serial.printf_P(PSTR("[http] / sent %u/%u bytes in %lu ms (connected=%d)\n"), unsigned(sent), unsigned(len),
                       (unsigned long)(millis() - t0), client.connected());
     });
     server.on("/api/page", HTTP_POST, [this] {             // navigation only: no settings change
@@ -699,7 +699,7 @@ void NetworkManager::setupRoutes() {
         j += F(",\"bridge\":"); j += g_state.bridge.online ? F("true") : F("false");
         j += F(",\"al\":\""); j += esc(g_state.alert.text); j += '"';
         struct tm t;
-        if (g_clock.now(t)) { char hm[6]; snprintf(hm, sizeof hm, "%02d:%02d", t.tm_hour, t.tm_min); j += F(",\"time\":\""); j += hm; j += '"'; }
+        if (g_clock.now(t)) { char hm[6]; snprintf_P(hm, sizeof hm, PSTR("%02d:%02d"), t.tm_hour, t.tm_min); j += F(",\"time\":\""); j += hm; j += '"'; }
         // focus timers: phase (0 idle, 1 focus, 2 break), running, seconds left, session, stopwatch, countdown, minutes today
         j += F(",\"f\":{\"p\":"); j += uint8_t(g_focus.phase());
         j += F(",\"r\":"); j += g_focus.pomoRunning() ? 1 : 0;
@@ -803,7 +803,7 @@ void NetworkManager::setupRoutes() {
         // Setup network: every other address (phone connectivity checks such as /generate_204 included)
         // gets the setup page with 200. Any answer other than 204 makes the phone offer "Sign in",
         // and with no redirect there is nothing to loop.
-        Serial.printf("[http] %s host '%s' -> setup page\n", server.uri().c_str(), server.hostHeader().c_str());
+        Serial.printf_P(PSTR("[http] %s host '%s' -> setup page\n"), server.uri().c_str(), server.hostHeader().c_str());
         sendSetupPage(nullptr);
     });
     server.begin();
@@ -855,17 +855,17 @@ bool NetworkManager::otaAuthOk(uint32_t size, const String& md5) {
 }
 
 void NetworkManager::otaReject(const char* why) {       // refused before anything was written
-    snprintf(otaErr_, sizeof otaErr_, "%s", why);
-    Serial.printf("[ota] rejected: %s\n", why);
+    snprintf_P(otaErr_, sizeof otaErr_, PSTR("%s"), why);
+    Serial.printf_P(PSTR("[ota] rejected: %s\n"), why);
 }
 
 void NetworkManager::otaFail(const char* why) {         // failed after it started: show it on screen
     OtaState& o = g_state.ota;
-    snprintf(otaErr_, sizeof otaErr_, "%s", why);
-    snprintf(o.err, sizeof o.err, "%s", why);
+    snprintf_P(otaErr_, sizeof otaErr_, PSTR("%s"), why);
+    snprintf_P(o.err, sizeof o.err, PSTR("%s"), why);
     o.phase = OtaPhase::Failed;
     o.failedAt = millis();
-    Serial.printf("[ota] failed: %s (updater error %u)\n", why, unsigned(Update.getError()));
+    Serial.printf_P(PSTR("[ota] failed: %s (updater error %u)\n"), why, unsigned(Update.getError()));
     if (onOtaProgress) onOtaProgress();
 }
 
@@ -899,8 +899,8 @@ void NetworkManager::otaUpload() {
         if (size < 4096 || !md5ok) { otaReject("bad size or md5"); return; }
         if (!otaAuthOk(size, md5)) { otaReject("not authorised"); return; }
         if (!Update.begin(size)) {
-            snprintf(otaErr_, sizeof otaErr_, "cannot start (error %u)", unsigned(Update.getError()));
-            Serial.printf("[ota] rejected: %s\n", otaErr_);
+            snprintf_P(otaErr_, sizeof otaErr_, PSTR("cannot start (error %u)"), unsigned(Update.getError()));
+            Serial.printf_P(PSTR("[ota] rejected: %s\n"), otaErr_);
             return;
         }
         if (!Update.setMD5(md5.c_str())) { Update.end(); otaReject("bad md5"); return; }
@@ -909,7 +909,7 @@ void NetworkManager::otaUpload() {
         o.phase = OtaPhase::Receiving;
         o.pct = 0;
         o.err[0] = 0;
-        Serial.printf("[ota] receiving %lu bytes\n", (unsigned long)size);
+        Serial.printf_P(PSTR("[ota] receiving %lu bytes\n"), (unsigned long)size);
         if (onOtaProgress) onOtaProgress();
     } else if (up.status == UPLOAD_FILE_WRITE) {
         s_otaLastData = millis();
@@ -959,12 +959,12 @@ bool NetworkManager::applySetup(const char* ssid, const char* pass, const char* 
 void NetworkManager::goOnline() {
     if (apActive_) stopAP();
     offlineSince_ = 0;
-    snprintf(g_state.net.ip, sizeof g_state.net.ip, "%s", WiFi.localIP().toString().c_str());
+    snprintf_P(g_state.net.ip, sizeof g_state.net.ip, PSTR("%s"), WiFi.localIP().toString().c_str());
     g_state.net.rssi = WiFi.RSSI();
     static bool mdns = false;
     if (!mdns) { mdns = MDNS.begin("caiden"); if (mdns) MDNS.addService("http", "tcp", 80); }
     setMode(uint8_t(NetMode::Online));
-    Serial.printf("[net] online %s rssi %d\n", g_state.net.ip, g_state.net.rssi);
+    Serial.printf_P(PSTR("[net] online %s rssi %d\n"), g_state.net.ip, g_state.net.rssi);
 }
 
 void NetworkManager::loop() {
@@ -972,7 +972,7 @@ void NetworkManager::loop() {
     static uint32_t lastApLog = 0;
     if (apActive_ && millis() - lastApLog > 15000) {
         lastApLog = millis();
-        Serial.printf("[ap] %s ip %s ch %d stations %d\n", g_state.net.apName, WiFi.softAPIP().toString().c_str(),
+        Serial.printf_P(PSTR("[ap] %s ip %s ch %d stations %d\n"), g_state.net.apName, WiFi.softAPIP().toString().c_str(),
                       WiFi.channel(), WiFi.softAPgetStationNum());
     }
     if (apActive_) apHttpLoop();                 // setup network: own server (see apHttpLoop)
@@ -992,7 +992,7 @@ void NetworkManager::loop() {
             if (up) { goOnline(); return; }
             if (now - connectStart_ > CONNECT_TIMEOUT_MS) {
                 // 1 no SSID seen, 4 connect failed, 6 wrong password, 7 disconnected (core wl_status_t)
-                Serial.printf("[net] connect timeout (status %d)\n", int(WiFi.status()));
+                Serial.printf_P(PSTR("[net] connect timeout (status %d)\n"), int(WiFi.status()));
                 startAP();
             }
             return;
@@ -1003,7 +1003,7 @@ void NetworkManager::loop() {
                 if (up) { goOnline(); return; }
                 const bool phoneJoined = WiFi.softAPgetStationNum() > 0;
                 if (phoneJoined || int32_t(now - staTryUntil_) >= 0) {   // back to a quiet AP
-                    Serial.printf("[net] retry failed (status %d)\n", int(WiFi.status()));
+                    Serial.printf_P(PSTR("[net] retry failed (status %d)\n"), int(WiFi.status()));
                     WiFi.disconnect();
                     WiFi.mode(WIFI_AP);
                     staTrying_ = false;

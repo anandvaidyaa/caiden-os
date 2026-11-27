@@ -2,10 +2,11 @@
 // Cloud relay client (relay/worker.js on Cloudflare, plain HTTP). Everything that needs HTTPS or an
 // account comes through it: news, markets, quote and cricket (/state.json, every 10 min), Spotify
 // (/sp.json, every 5 s while a player is active) and album art (/art.bin, 120x120 RGB565, 28.8 KB,
-// streamed to LittleFS /art.bin in 512 B chunks - the image is never held in RAM). The clock also
-// runs its own connection test (latency to the relay and router, download speed) every 30 min.
+// streamed to LittleFS /art.bin in 512 B chunks - the image is never held in RAM). Spotify polling is
+// non-blocking (spStart/spPoll); the other requests are short and infrequent, so they still wait.
 // The class keeps its old name: the PC bridge it replaced served the same documents.
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
 #include <ArduinoJson.h>
 
 class BridgeService {
@@ -25,12 +26,26 @@ private:
     bool fetchDuco();
     void installUpdate();
     uint32_t fwNext_ = 120000;
+    WiFiClient spCli_;
+    uint8_t spSt_ = 0;                    // 0 idle, 1 reading headers, 2 reading the body
+    uint32_t spSince_ = 0;
+    char spLine_[40];
+    uint8_t spLineN_ = 0;
+    int16_t spLen_ = -1, spCode_ = 0;
+    bool spKeep_ = true;
+    char* spBody_ = nullptr;              // allocated only while a reply is being read
+    uint16_t spGot_ = 0;
     uint32_t ducoNext_ = 0;
     bool ducoWanted_ = false;
     bool installReq_ = false;
     bool getJson(const String& path, uint16_t timeoutMs, JsonDocument& doc);
     bool fetchState();
-    bool fetchSpotify();
+    void applySpotify(JsonDocument& doc);
+    // Spotify is polled every 5 s while music plays. A blocking request froze the clock ~0.6 s each time,
+    // so the request is sent on a kept-open connection and the reply is collected over later loop passes.
+    bool spStart();                       // send GET /sp.json; false if the relay can't be reached
+    int8_t spPoll(uint32_t now);          // 0 still waiting, 1 done (applied), -1 failed
+    void spClose();
     bool fetchArt(const char* id);
     void applyState(JsonDocument& doc);
     void okNow();

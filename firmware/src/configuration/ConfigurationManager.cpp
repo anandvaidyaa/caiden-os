@@ -8,7 +8,7 @@ ConfigurationManager g_config;
 // Note: `doc["k"] | cfg_.field` returns the field itself when the key is missing -> skip self-copy.
 static void copyStr(char* dst, size_t n, const char* src) {
     if (!src || src == dst) return;
-    snprintf(dst, n, "%s", src);
+    snprintf_P(dst, n, PSTR("%s"), src);
 }
 
 bool ConfigurationManager::load() {
@@ -19,7 +19,7 @@ bool ConfigurationManager::load() {
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, f);
     f.close();
-    if (err) { Serial.printf("[cfg] parse error: %s\n", err.c_str()); return false; }
+    if (err) { Serial.printf_P(PSTR("[cfg] parse error: %s\n"), err.c_str()); return false; }
     copyStr(cfg_.ssid, sizeof cfg_.ssid, doc["ssid"] | "");
     copyStr(cfg_.pass, sizeof cfg_.pass, doc["pass"] | "");
     copyStr(cfg_.city, sizeof cfg_.city, doc["city"] | cfg_.city);
@@ -57,7 +57,7 @@ bool ConfigurationManager::load() {
     copyStr(cfg_.ducoUser, sizeof cfg_.ducoUser, doc["duser"] | "");
     copyStr(cfg_.ducoKey, sizeof cfg_.ducoKey, doc["dkey"] | "");
     if (!doc["drig"].isNull()) copyStr(cfg_.ducoRig, sizeof cfg_.ducoRig, doc["drig"] | "caiden");
-    Serial.printf("[cfg] loaded: city=%s theme=%s wifi=%s\n", cfg_.city, cfg_.theme, cfg_.ssid[0] ? "set" : "none");
+    Serial.printf_P(PSTR("[cfg] loaded: city=%s theme=%s wifi=%s\n"), cfg_.city, cfg_.theme, cfg_.ssid[0] ? "set" : "none");
     return true;
 }
 

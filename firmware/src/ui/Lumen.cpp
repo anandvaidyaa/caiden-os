@@ -72,7 +72,7 @@ void iconBell(Canvas& c, float cx, float cy, float size, uint16_t col) {
 
 void badge(Canvas& c, float cx, float cy, int n, uint16_t col, uint16_t ring, bool hasRing) {
     char s[12];
-    if (n < 10) snprintf(s, sizeof s, "%d", n); else strcpy(s, "9+");
+    if (n < 10) snprintf_P(s, sizeof s, PSTR("%d"), n); else strcpy(s, "9+");
     float r = n < 10 ? 7.f : 8.5f;
     if (hasRing) c.fillCircle(cx, cy, r + 1.6f, ring);
     c.fillCircle(cx, cy, r, col);
@@ -285,9 +285,9 @@ void header(Canvas& c, const Theme& t, const char* title, HeaderIcon icon, uint1
         if (dataAt && now > time_t(dataAt) + 1800) {   // stale (relay away): show the data's age
             const uint32_t m = uint32_t(now - dataAt) / 60;
             char age[16];
-            if (m < 60) snprintf(age, sizeof age, "%uM AGO", unsigned(m));
-            else if (m < 48 * 60) snprintf(age, sizeof age, "%uH AGO", unsigned(m / 60));
-            else snprintf(age, sizeof age, "%uD AGO", unsigned(m / 1440));
+            if (m < 60) snprintf_P(age, sizeof age, PSTR("%uM AGO"), unsigned(m));
+            else if (m < 48 * 60) snprintf_P(age, sizeof age, PSTR("%uH AGO"), unsigned(m / 60));
+            else snprintf_P(age, sizeof age, PSTR("%uD AGO"), unsigned(m / 1440));
             int16_t w = c.text(W - M, 21, age, FONT_L_LABEL, t.warn, Align::Right, 1);
             c.fillCircle(W - M - w - 7, 17, 2.4f, t.warn);
             rx = W - M - w - 10;
@@ -295,7 +295,7 @@ void header(Canvas& c, const Theme& t, const char* title, HeaderIcon icon, uint1
             char hh[4], mm[4], tbuf[10];
             bool am;
             g_clock.hhmm(hh, mm, g_config.get().h24, am);   // follows the 12/24 h setting, like home
-            snprintf(tbuf, sizeof tbuf, "%s:%s", hh, mm);
+            snprintf_P(tbuf, sizeof tbuf, PSTR("%s:%s"), hh, mm);
             int16_t w = c.text(W - M, 22, tbuf, FONT_L_NUM_S, bars ? t.text2 : t.text3, Align::Right);
             if (!bars) c.fillCircle(W - M - w - 7, 17, 2.4f, t.bad);
             rx = W - M - w - (bars ? 0 : 10);
@@ -316,7 +316,7 @@ void header(Canvas& c, const Theme& t, const char* title, HeaderIcon icon, uint1
     c.glow(M + 2, 17, 7, iconCol, 90);
     c.fillCircle(M + 2, 17, 2.4f, iconCol);
     char up[40], fit[40];
-    snprintf(up, sizeof up, "%s", title);
+    snprintf_P(up, sizeof up, PSTR("%s"), title);
     for (char* p = up; *p; p++) *p = toupper(uint8_t(*p));
     Canvas::ellipsize(up, FONT_L_LABEL, int16_t(x - (M + 11)), fit, sizeof fit);
     label(c, M + 11, 21, fit, t.text2);

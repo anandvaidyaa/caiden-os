@@ -35,7 +35,7 @@ void ClockService::hhmm(char* hh, char* mm, bool h24, bool& am) const {
 
 void ClockService::dateLabel(char* out, size_t n) const {
     struct tm t;
-    if (!now(t)) { snprintf(out, n, "SYNCING TIME"); return; }
+    if (!now(t)) { snprintf_P(out, n, PSTR("SYNCING TIME")); return; }
     strftime(out, n, "%a %d %b", &t);
     for (char* p = out; *p; p++) *p = toupper(uint8_t(*p));
 }
@@ -43,5 +43,5 @@ void ClockService::dateLabel(char* out, size_t n) const {
 void ClockService::timeShort(char* out, size_t n, bool h24) const {
     char hh[4], mm[4]; bool am;
     hhmm(hh, mm, h24, am);
-    snprintf(out, n, "%s:%s", hh, mm);
+    snprintf_P(out, n, PSTR("%s:%s"), hh, mm);
 }

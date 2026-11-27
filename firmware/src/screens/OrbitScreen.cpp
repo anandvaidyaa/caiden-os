@@ -198,11 +198,11 @@ void OrbitScreen::render(Canvas& c, const Theme& t) {
         strftime(wd, sizeof wd, "%A", &tm);
         char mon[6];
         strftime(mon, sizeof mon, "%b", &tm);
-        snprintf(dm, sizeof dm, "%d %s", tm.tm_mday, mon);
-        snprintf(date, sizeof date, "%s  \xC2\xB7  %s", wd, dm);
+        snprintf_P(dm, sizeof dm, PSTR("%d %s"), tm.tm_mday, mon);
+        snprintf_P(date, sizeof date, PSTR("%s  \xC2\xB7  %s"), wd, dm);
         for (char* p = date; *p; p++) *p = toupper(uint8_t(*p));
     } else {
-        snprintf(date, sizeof date, "%s", g_state.net.mode == NetMode::Connecting ? "CONNECTING" : "SYNCING TIME");
+        snprintf_P(date, sizeof date, PSTR("%s"), g_state.net.mode == NetMode::Connecting ? "CONNECTING" : "SYNCING TIME");
     }
     label(c, int16_t(CX), 76, date, t.text2, Align::Center);
 
@@ -217,8 +217,8 @@ void OrbitScreen::render(Canvas& c, const Theme& t) {
             if (phase1) { hh = prevHH_; mm = prevMM_; }
             bool relayout = strlen(prevHH_) != strlen(shownHH_);
             char o[6], n[6];
-            snprintf(o, sizeof o, "%s%s", prevHH_, prevMM_);
-            snprintf(n, sizeof n, "%s%s", shownHH_, shownMM_);
+            snprintf_P(o, sizeof o, PSTR("%s%s"), prevHH_, prevMM_);
+            snprintf_P(n, sizeof n, PSTR("%s%s"), shownHH_, shownMM_);
             for (int i = 0; i < 4 && n[i]; i++) if (relayout || o[i] != n[i]) al[i] = k;
         }
         if (timeOk) clock(c, t, CX, CLOCK_BASE, hh, mm, FONT_L_CLOCK_L, al, colonAlpha_);
@@ -228,10 +228,10 @@ void OrbitScreen::render(Canvas& c, const Theme& t) {
     {   // weather + AQI row
         const int16_t rowY = 167;
         char temp[12], aq[8];
-        if (w.valid) snprintf(temp, sizeof temp, "%d\xC2\xB0", int(lroundf(w.temp)));
+        if (w.valid) snprintf_P(temp, sizeof temp, PSTR("%d\xC2\xB0"), int(lroundf(w.temp)));
         else strcpy(temp, "--\xC2\xB0");
         const bool aok = a.valid && a.naqi >= 0;
-        if (aok) snprintf(aq, sizeof aq, "%d", a.naqi); else strcpy(aq, "--");
+        if (aok) snprintf_P(aq, sizeof aq, PSTR("%d"), a.naqi); else strcpy(aq, "--");
         float wi = Canvas::textWidth(temp, FONT_L_NUM_M), ai = Canvas::textWidth(aq, FONT_L_NUM_M);
         float total = 22 + 4 + wi + 18 + 10 + ai;
         float x = CX - total / 2;
@@ -248,22 +248,22 @@ void OrbitScreen::render(Canvas& c, const Theme& t) {
         // becomes "Clear · Moderate", then "Moderate air"; the weather icon above still shows the sky).
         static const int16_t LINE_W = 114;
         char line[48];
-        if (cfg.geoFailed) snprintf(line, sizeof line, "City not found");
+        if (cfg.geoFailed) snprintf_P(line, sizeof line, PSTR("City not found"));
         else if (w.valid && a.valid && a.naqi >= 0) {
             const char* wx = wxWord(w.code, w.isDay);
             const char* air = aqiLongName(aqiBand(a.naqi));
-            snprintf(line, sizeof line, "%s \xC2\xB7 %s air", wx, air);
-            if (Canvas::textWidth(line, FONT_L_BODY) > LINE_W) snprintf(line, sizeof line, "%s \xC2\xB7 %s", wx, air);
-            if (Canvas::textWidth(line, FONT_L_BODY) > LINE_W) snprintf(line, sizeof line, "%s air", air);
-            if (Canvas::textWidth(line, FONT_L_BODY) > LINE_W) snprintf(line, sizeof line, "%s", air);
+            snprintf_P(line, sizeof line, PSTR("%s \xC2\xB7 %s air"), wx, air);
+            if (Canvas::textWidth(line, FONT_L_BODY) > LINE_W) snprintf_P(line, sizeof line, PSTR("%s \xC2\xB7 %s"), wx, air);
+            if (Canvas::textWidth(line, FONT_L_BODY) > LINE_W) snprintf_P(line, sizeof line, PSTR("%s air"), air);
+            if (Canvas::textWidth(line, FONT_L_BODY) > LINE_W) snprintf_P(line, sizeof line, PSTR("%s"), air);
         }
-        else if (w.valid) snprintf(line, sizeof line, "%s", wxWord(w.code, w.isDay));
-        else snprintf(line, sizeof line, "%s", g_state.net.mode == NetMode::Online ? "Fetching weather" : "Waiting for Wi-Fi");
+        else if (w.valid) snprintf_P(line, sizeof line, PSTR("%s"), wxWord(w.code, w.isDay));
+        else snprintf_P(line, sizeof line, PSTR("%s"), g_state.net.mode == NetMode::Online ? "Fetching weather" : "Waiting for Wi-Fi");
         char fit[48];
         Canvas::ellipsize(line, FONT_L_BODY, LINE_W, fit, sizeof fit);
         c.text(int16_t(CX), 187, fit, FONT_L_BODY, t.text2, Align::Center);
         char city[34];
-        snprintf(city, sizeof city, "%s", cfg.city);
+        snprintf_P(city, sizeof city, PSTR("%s"), cfg.city);
         for (char* p = city; *p; p++) *p = toupper(uint8_t(*p));
         char cityFit[40];
         Canvas::ellipsize(city, FONT_L_LABEL, 100, cityFit, sizeof cityFit);

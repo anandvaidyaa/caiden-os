@@ -206,7 +206,7 @@ bool applySetting(const char* key, const char* val, bool apply) {
         static const char* NAMES[] = {"midnight", "aurora", "crystal", "hypertech"};
         for (const char* n : NAMES) {
             if (strcmp(n, val)) continue;
-            if (apply) { snprintf(c.theme, sizeof c.theme, "%s", n); g_ui.setTheme(themeFromName(n)); }
+            if (apply) { snprintf_P(c.theme, sizeof c.theme, PSTR("%s"), n); g_ui.setTheme(themeFromName(n)); }
             return true;
         }
         return false;
@@ -254,7 +254,7 @@ bool applySetting(const char* key, const char* val, bool apply) {
         if (n >= sizeof c.bridge) return false;
         for (size_t i = 0; i < n; i++)
             if (!isalnum((unsigned char)val[i]) && !strchr(".-:", val[i])) return false;
-        if (apply) snprintf(c.bridge, sizeof c.bridge, "%s", val);
+        if (apply) snprintf_P(c.bridge, sizeof c.bridge, PSTR("%s"), val);
         return true;
     }
     // feed settings (sent to the relay): printable ASCII, fixed buffers
@@ -262,7 +262,7 @@ bool applySetting(const char* key, const char* val, bool apply) {
         const size_t len = strlen(val);
         if (len >= n) return false;
         for (size_t i = 0; i < len; i++) if (val[i] < 0x20 || val[i] > 0x7E) return false;
-        if (apply) { snprintf(dst, n, "%s", val); g_bridge.relayChanged(); }
+        if (apply) { snprintf_P(dst, n, PSTR("%s"), val); g_bridge.relayChanged(); }
         return true;
     };
     if (!strcmp(key, "feeds")) return val[0] && text(c.feeds, sizeof c.feeds);
@@ -283,7 +283,7 @@ bool applySetting(const char* key, const char* val, bool apply) {
         if (n >= sizeof c.relay) return false;
         for (size_t i = 0; i < n; i++)
             if (!isalnum((unsigned char)val[i]) && !strchr(".-:", val[i])) return false;
-        if (apply) { snprintf(c.relay, sizeof c.relay, "%s", val); g_bridge.relayChanged(); }
+        if (apply) { snprintf_P(c.relay, sizeof c.relay, PSTR("%s"), val); g_bridge.relayChanged(); }
         return true;
     }
     // Duino-Coin mining (off by default). Username, key and rig name go into the pool's comma-separated
@@ -292,7 +292,7 @@ bool applySetting(const char* key, const char* val, bool apply) {
         const size_t len = strlen(val);
         if (len >= n || (needed && !len)) return false;
         for (size_t i = 0; i < len; i++) if (val[i] <= 0x20 || val[i] > 0x7E || val[i] == ',') return false;
-        if (apply) { snprintf(dst, n, "%s", val); g_miner.settingsChanged(); }
+        if (apply) { snprintf_P(dst, n, PSTR("%s"), val); g_miner.settingsChanged(); }
         return true;
     };
     if (!strcmp(key, "duser")) return ducoText(c.ducoUser, sizeof c.ducoUser, false);
@@ -347,15 +347,15 @@ static void serialCommands() {
                                        doc["h24"] | -1, doc["theme"] | "");
             Serial.println(ok ? F("[setup] saved, restarting") : F("[setup] save failed"));
         } else if (!strcmp(cmd, "otakey")) {           // USB only: the wireless update key
-            Serial.printf("[otakey] %s\n", g_net.otaKey());
+            Serial.printf_P(PSTR("[otakey] %s\n"), g_net.otaKey());
         } else if (!strcmp(cmd, "status")) {
-            Serial.printf("[status] mode %u ip %s ssid %s heap %u screen %s scroll %u\n", unsigned(g_state.net.mode),
+            Serial.printf_P(PSTR("[status] mode %u ip %s ssid %s heap %u screen %s scroll %u\n"), unsigned(g_state.net.mode),
                           g_state.net.ip, g_state.net.ssid, ESP.getFreeHeap(),
                           g_ui.current() ? g_ui.current()->name() : "-", lcd.scroll());
         } else if (!strcmp(cmd, "bench")) {
             uint32_t us = g_ui.benchFullFrame(3);
             uint32_t other = us - g_ui.benchPaint - g_ui.benchSwap - g_ui.benchSpi;
-            Serial.printf("[bench] %s full frame %lu ms = paint %lu + swap %lu + spi %lu + other %lu (glow %u%%)\n",
+            Serial.printf_P(PSTR("[bench] %s full frame %lu ms = paint %lu + swap %lu + spi %lu + other %lu (glow %u%%)\n"),
                           g_ui.current() ? g_ui.current()->name() : "-", (unsigned long)(us / 1000),
                           (unsigned long)(g_ui.benchPaint / 1000), (unsigned long)(g_ui.benchSwap / 1000),
                           (unsigned long)(g_ui.benchSpi / 1000), (unsigned long)(other / 1000), g_glowPct);
@@ -368,7 +368,7 @@ static void serialCommands() {
                 g_config.get().rotateSec = uint16_t(sec);
                 g_config.save();
                 rotSince = millis();
-                Serial.printf("[rotate] %d s%s\n", sec, sec ? "" : " (off)");
+                Serial.printf_P(PSTR("[rotate] %d s%s\n"), sec, sec ? "" : " (off)");
             }
         } else if (!strcmp(cmd, "focus")) {
             bool ok = g_focus.command(doc["a"] | "", doc["s"] | 0);
@@ -380,7 +380,7 @@ static void serialCommands() {
                 g_config.get().nightFrom = uint8_t(f);
                 g_config.get().nightTo = uint8_t(t);
                 g_config.save();
-                Serial.printf("[night] %s\n", f == t ? "screensaver off" : "screensaver hours set");
+                Serial.printf_P(PSTR("[night] %s\n"), f == t ? "screensaver off" : "screensaver hours set");
             }
         } else if (!strcmp(cmd, "glow")) {
             int p = doc["pct"] | -1;
@@ -389,7 +389,7 @@ static void serialCommands() {
                 g_config.get().glowPct = uint8_t(p);
                 g_config.save();
                 g_ui.invalidateAll();
-                Serial.printf("[glow] %d%%\n", p);
+                Serial.printf_P(PSTR("[glow] %d%%\n"), p);
             }
         }
     }
@@ -399,7 +399,7 @@ static void serialCommands() {
 void setup() {
     Serial.begin(115200);
     delay(20);
-    Serial.printf("\n[CAIDEN] OS %s  reset: %s\n", CAIDEN_FW_VERSION, ESP.getResetReason().c_str());
+    Serial.printf_P(PSTR("\n[CAIDEN] OS %s  reset: %s\n"), CAIDEN_FW_VERSION, ESP.getResetReason().c_str());
 
     PanelConfig pc;                  // verified on hardware in M1 (HARDWARE_INVESTIGATION.md)
     lcd.begin(pc);
@@ -421,7 +421,7 @@ void setup() {
     g_clock.begin(g_config.get().tz);
     g_focus.begin();
     pinMode(4, INPUT_PULLUP);        // pad: no signal on this unit (M1), watched passively only
-    Serial.printf("[CAIDEN] heap after init %u\n", ESP.getFreeHeap());
+    Serial.printf_P(PSTR("[CAIDEN] heap after init %u\n"), ESP.getFreeHeap());
 }
 
 // ---------------------------------------------------------------- weather / air alerts
@@ -454,7 +454,7 @@ static void updateAlerts() {
     al.kind = kind;
     snprintf_P(al.text, sizeof al.text, PSTR("%s"), txt);
     g_ui.setAlert(kind ? al.text : nullptr, kind);
-    Serial.printf("[alert] %s\n", kind ? al.text : "none");
+    Serial.printf_P(PSTR("[alert] %s\n"), kind ? al.text : "none");
 }
 
 void loop() {
@@ -477,7 +477,7 @@ void loop() {
     static uint32_t lastLog = 0;
     if (now - lastLog > 60000) {
         lastLog = now;
-        Serial.printf("[sys] heap %u frag %u%% maxblk %u frame %lums\n", ESP.getFreeHeap(),
+        Serial.printf_P(PSTR("[sys] heap %u frag %u%% maxblk %u frame %lums\n"), ESP.getFreeHeap(),
                       ESP.getHeapFragmentation(), ESP.getMaxFreeBlockSize(),
                       (unsigned long)(g_ui.lastFrameUs() / 1000));
     }

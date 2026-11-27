@@ -28,6 +28,11 @@ struct Config {
     bool     btc = true;                      // Bitcoin row on Markets
     uint8_t  newsAge = 24;                    // skip stories older than this (hours)
     char     team[25] = "India";              // cricket: follow live matches of this team
+    // Duino-Coin mining (hobby; off by default). Account details live only in the clock's config.
+    bool     mineOn = false;
+    char     ducoUser[33] = "";
+    char     ducoKey[33] = "";                // optional mining key
+    char     ducoRig[25] = "caiden";
     char     apPass[12] = "";                 // random setup-AP password, generated on first boot
     char     webPass[12] = "";                // settings-page password, made by the clock, shown on System
 };

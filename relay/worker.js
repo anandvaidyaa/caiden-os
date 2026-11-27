@@ -564,12 +564,71 @@ async function recordClock(env, q) {
   const now = Math.floor(Date.now() / 1000);
   const num = k => { const v = parseInt(q.get(k), 10); return Number.isFinite(v) ? v : null; };
   const cur = { fw: q.get("fw").slice(0, 12), up: num("up"), hp: num("hp"), ss: num("ss"),
+                mh: num("mh"), ma: num("ma"), mr: num("mr"),
                 rr: (q.get("rr") || "").slice(0, 40), ue: (q.get("ue") || "").slice(0, 40), at: now };
   const old = await env.CAIDEN.get("clock", "json");
   if (old && old.fw === cur.fw && old.ue === cur.ue && old.rr === cur.rr && cur.up >= old.up && now - old.at < 900) return;
   if (old && (old.fw !== cur.fw || cur.up < old.up)) cur.prev = { fw: old.fw, up: old.up, at: old.at };   // restarted / updated
   else if (old && old.prev) cur.prev = old.prev;
   await env.CAIDEN.put("clock", JSON.stringify(cur));
+}
+
+// ---------------------------------------------------------------- Duino-Coin mining (clock 0.8.7+)
+// /duco.json?u=<username>&r=<rig>&d=<YYYY-MM-DD, the clock's local date>
+// Pool address (getPool), the account's balance, what the pool shows for this rig, DUCO price in INR
+// and the Bitcoin network hash rate (for the clock's "lottery" line). "today" = balance minus the
+// balance first seen on that date (one KV write per day). Prices and the pool are cached in memory.
+const DUCO = "https://server.duinocoin.com";
+let DUCO_CACHE = { at: 0, pool: null, usd: 0, inrRate: 0, btc: 0 };
+
+async function ducoShared() {
+  const now = Date.now();
+  if (now - DUCO_CACHE.at < 10 * 60e3 && DUCO_CACHE.pool) return DUCO_CACHE;
+  const [pool, api, fx, btc] = await Promise.allSettled([
+    getJson(`${DUCO}/getPool`),
+    getJson(`${DUCO}/api.json`),
+    getJson("https://open.er-api.com/v6/latest/USD"),
+    fetch("https://blockchain.info/q/hashrate", { headers: { "User-Agent": UA } }).then((r) => (r.ok ? r.text() : "")),
+  ]);
+  const ok = (p) => (p.status === "fulfilled" ? p.value : null);
+  const c = { at: now, pool: ok(pool), usd: 0, inrRate: 0, btc: 0 };
+  if (ok(api)) c.usd = Number(ok(api)["Duco price"]) || 0;
+  if (ok(fx)) c.inrRate = Number((ok(fx).rates || {}).INR) || 0;
+  const gh = parseFloat(ok(btc) || "");                     // GH/s
+  if (gh > 0) c.btc = gh * 1e9;
+  if (c.pool && c.pool.success) DUCO_CACHE = c;
+  return c;
+}
+
+async function ducoInfo(env, q) {
+  const user = (q.get("u") || "").trim();
+  const rig = (q.get("r") || "caiden").trim();
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(q.get("d") || "") ? q.get("d") : new Date().toISOString().slice(0, 10);
+  if (!/^[A-Za-z0-9_.\-]{1,32}$/.test(user)) return { ok: false, err: "bad username" };
+  const [shared, acct] = await Promise.all([ducoShared(), getJson(`${DUCO}/users/${encodeURIComponent(user)}`).catch(() => null)]);
+  const out = { ok: true };
+  if (shared.pool && shared.pool.success) { out.ip = shared.pool.ip; out.port = shared.pool.port; out.name = String(shared.pool.name || "").slice(0, 23); }
+  out.inr = shared.usd * shared.inrRate;
+  out.btc = shared.btc;
+  const r = acct && acct.result;
+  if (r && r.balance) {
+    const bal = Number(r.balance.balance) || 0;
+    out.bal = bal;
+    out.today = 0;
+    if (env.CAIDEN) {
+      const key = `duco_day:${user.toLowerCase()}`;
+      const base = await env.CAIDEN.get(key, "json");
+      if (base && base.d === day) out.today = Math.max(0, bal - base.b);
+      else await env.CAIDEN.put(key, JSON.stringify({ d: day, b: bal }), { expirationTtl: 3 * 86400 });
+    }
+    const mine = (r.miners || []).filter((m) => m.identifier === rig);
+    out.phr = mine.reduce((a, m) => a + (Number(m.hashrate) || 0), 0);
+    out.pacc = mine.reduce((a, m) => a + (Number(m.accepted) || 0), 0);
+    out.prej = mine.reduce((a, m) => a + (Number(m.rejected) || 0), 0);
+  } else {
+    out.err = "account not found";
+  }
+  return out;
 }
 
 export default {
@@ -580,6 +639,7 @@ export default {
         case "/state.json":
           ctx.waitUntil(recordClock(env, url.searchParams).catch(() => {}));
           return json(await buildState(env, url.searchParams));
+        case "/duco.json": return json(await ducoInfo(env, url.searchParams));
         case "/clock.json": {
           const c = env.CAIDEN ? await env.CAIDEN.get("clock", "json") : null;
           if (!c) return json({ seen: false });

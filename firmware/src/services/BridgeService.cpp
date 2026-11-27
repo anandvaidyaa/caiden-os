@@ -8,6 +8,7 @@
 #include "../state/AppState.h"
 #include "../graphics/Color.h"
 #include "../networking/NetworkManager.h"
+#include "MinerService.h"
 #include <Crypto.h>
 #include <Updater.h>
 
@@ -99,6 +100,14 @@ bool BridgeService::fetchState() {
     path += F("&rr=");
     addEncoded(path, ESP.getResetReason().c_str());
     if (g_state.ota.err[0]) { path += F("&ue="); addEncoded(path, g_state.ota.err); }
+    if (c.mineOn) {                                       // mining: rate and shares in the health report
+        path += F("&mh=");
+        path += int(g_state.mine.hr);
+        path += F("&ma=");
+        path += g_state.mine.acc;
+        path += F("&mr=");
+        path += g_state.mine.rej;
+    }
     JsonDocument doc;
     if (!getJson(path, 8000, doc)) return false;   // the worker fetches ~10 sources: allow time
     applyState(doc);
@@ -270,6 +279,40 @@ bool BridgeService::artRow(int16_t row, uint16_t* out, int16_t x0, int16_t w) {
     return size_t(f.read(reinterpret_cast<uint8_t*>(out), size_t(w) * 2)) == size_t(w) * 2;   // little-endian = native
 }
 
+// ---------------------------------------------------------------- Duino-Coin (relay /duco.json)
+bool BridgeService::fetchDuco() {
+    const Config& c = g_config.get();
+    String path = F("/duco.json?u=");
+    addEncoded(path, c.ducoUser);
+    path += F("&r=");
+    addEncoded(path, c.ducoRig[0] ? c.ducoRig : "caiden");
+    struct tm t;
+    const time_t now = time(nullptr);
+    if (now > 1600000000 && localtime_r(&now, &t)) {      // the relay keeps today's starting balance
+        char d[12];
+        strftime(d, sizeof d, "%Y-%m-%d", &t);
+        path += F("&d=");
+        path += d;
+    }
+    JsonDocument doc;
+    if (!getJson(path, 8000, doc)) { g_state.mine.relayOk = false; return false; }
+    MiningData& m = g_state.mine;
+    copy(m.poolIp, sizeof m.poolIp, doc["ip"] | "");
+    m.poolPort = doc["port"] | 0;
+    copy(m.poolName, sizeof m.poolName, doc["name"] | "");
+    m.bal = doc["bal"] | 0.f;
+    m.today = doc["today"] | 0.f;
+    m.inr = doc["inr"] | 0.f;
+    m.btcHr = doc["btc"] | 0.f;
+    m.poolHr = doc["phr"] | 0.f;
+    m.poolAcc = doc["pacc"] | 0;
+    m.poolRej = doc["prej"] | 0;
+    m.relayOk = true;
+    m.version++;
+    Serial.printf_P(PSTR("[mine] pool %s:%u, balance %.4f DUCO, today %.4f\n"), m.poolIp, m.poolPort, m.bal, m.today);
+    return true;
+}
+
 // ---------------------------------------------------------------- cloud firmware update
 // The image travels over plain HTTP, so the clock trusts nothing the relay says by itself:
 // /fw.json carries mac = HMAC-SHA256(update key, "caiden-fw:<version>:<size>:<md5>"), made on the PC
@@ -356,6 +399,7 @@ void BridgeService::installUpdate() {
     for (uint8_t i = 0; i < 3 && !metaOk; i++) { if (i) delay(1000); metaOk = fetchFwMeta(); }
     if (!metaOk || !b.fwV[0]) { fwFail("update not available"); return; }
     closeArt();
+    g_miner.settingsChanged();   // drop the mining pool connection: the download needs that memory
     Serial.printf("[fw] installing %s\n", b.fwV);
     o.phase = OtaPhase::Receiving; o.pct = 0; o.err[0] = 0;
     if (g_net.onOtaProgress) g_net.onOtaProgress();
@@ -457,6 +501,14 @@ void BridgeService::loop(bool online) {
         fwNext_ = millis() + (fetchFwMeta() ? FW_CHECK_MS : 600000UL);
         return;
     }
+    // mining: pool address, balance, prices (every 10 min while mining is on; at once when it starts)
+    const bool mining = c.mineOn && c.ducoUser[0];
+    if (mining && (!ducoWanted_ || int32_t(now - ducoNext_) >= 0)) {
+        ducoWanted_ = true;
+        ducoNext_ = millis() + (fetchDuco() ? 600000UL : 60000UL);
+        return;
+    }
+    if (!mining) ducoWanted_ = false;
     if (int32_t(now - stateNext_) >= 0) {
         if (fetchState()) { okNow(); stateNext_ = millis() + (b.cr.live ? CRICKET_LIVE_MS : STATE_MS); }
         else stateNext_ = retry();

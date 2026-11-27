@@ -14,6 +14,8 @@
 #include "screens/MoreScreens.h"
 #include "services/FocusService.h"
 #include "screens/SystemScreens.h"
+#include "screens/MiningScreen.h"
+#include "services/MinerService.h"
 #include "storage/StorageManager.h"
 #include "configuration/ConfigurationManager.h"
 #include "networking/NetworkManager.h"
@@ -45,12 +47,13 @@ static SystemScreen systemScreen;
 static SunScreen sunScreen;
 static QuoteScreen quoteScreen;
 static LanScreen lanScreen;
+static MiningScreen miningScreen;
 static UpdateScreen updateScreen;
 
 // Rotating dashboard pages (bridge-backed pages arrive with M5). Idle is not part of the rotation.
 static Screen* const PAGES[] = {&homeScreen, &spotifyScreen, &focusScreen, &cricketScreen, &weatherScreen, &airScreen,
                                 &calendarScreen, &worldScreen, &marketsScreen, &newsScreen,
-                                &sunScreen, &quoteScreen, nullptr, &lanScreen};   // bits 10-13 (portal PG order); bit 12 was
+                                &sunScreen, &quoteScreen, nullptr, &lanScreen, &miningScreen};   // bits 10-13 (portal PG order); bit 12 was
                                 // Connection (removed in 0.8.5): the slot stays so saved page bits keep their meaning
 // (the System page is diagnostics: open it with /api/page?name=system or the web page)
 static const uint8_t PAGE_COUNT = sizeof(PAGES) / sizeof(PAGES[0]);
@@ -84,6 +87,7 @@ static Screen* pageByName(const char* n) {
     if (!strcmp(n, "sun") || !strcmp(n, "moon")) return &sunScreen;
     if (!strcmp(n, "quote")) return &quoteScreen;
     if (!strcmp(n, "lan") || !strcmp(n, "network")) return &lanScreen;
+    if (!strcmp(n, "mining")) return &miningScreen;
     if (!strcmp(n, "engine")) return &engineScreen;     // M3.5 engine benchmark scene
     return nullptr;
 }
@@ -129,6 +133,7 @@ static bool pageAvailable(uint8_t i) {
     if (s == &newsScreen) return b.news > 0;
     if (s == &quoteScreen) return b.qt.text[0];
     if (s == &lanScreen) return b.ln.count > 0;
+    if (s == &miningScreen) return g_config.get().mineOn;
     if (s == &sunScreen) return g_state.weather.valid;
     return true;
 }
@@ -279,6 +284,29 @@ bool applySetting(const char* key, const char* val, bool apply) {
         for (size_t i = 0; i < n; i++)
             if (!isalnum((unsigned char)val[i]) && !strchr(".-:", val[i])) return false;
         if (apply) { snprintf(c.relay, sizeof c.relay, "%s", val); g_bridge.relayChanged(); }
+        return true;
+    }
+    // Duino-Coin mining (off by default). Username, key and rig name go into the pool's comma-separated
+    // protocol, so commas and control characters are refused.
+    auto ducoText = [&](char* dst, size_t n, bool needed) {
+        const size_t len = strlen(val);
+        if (len >= n || (needed && !len)) return false;
+        for (size_t i = 0; i < len; i++) if (val[i] <= 0x20 || val[i] > 0x7E || val[i] == ',') return false;
+        if (apply) { snprintf(dst, n, "%s", val); g_miner.settingsChanged(); }
+        return true;
+    };
+    if (!strcmp(key, "duser")) return ducoText(c.ducoUser, sizeof c.ducoUser, false);
+    if (!strcmp(key, "dkey")) return ducoText(c.ducoKey, sizeof c.ducoKey, false);
+    if (!strcmp(key, "drig")) return ducoText(c.ducoRig, sizeof c.ducoRig, true);
+    if (!strcmp(key, "mine")) {
+        if (!num || (v != 0 && v != 1)) return false;
+        if (apply) {
+            c.mineOn = v == 1;
+            if (c.mineOn) {                               // put the Mining page into the rotation
+                for (uint8_t i = 0; i < PAGE_COUNT; i++) if (PAGES[i] == &miningScreen) c.pageMask |= uint16_t(1u << i);
+            }
+            g_miner.settingsChanged();
+        }
         return true;
     }
     if (!strcmp(key, "night")) {                         // "from-to", equal = off
@@ -440,7 +468,8 @@ void loop() {
     if (!g_ui.transitioning()) {
         g_weather.loop(g_net.online() && g_clock.valid());
         g_bridge.loop(g_net.online());
-        g_lan.loop(g_net.online());          // Home network page: the clock's own device count
+        g_lan.loop(g_net.online());
+        g_miner.loop(g_net.online());        // Duino-Coin hobby miner: spare time only, off by default          // Home network page: the clock's own device count
     }
 
     static uint32_t lastAlert = 0;

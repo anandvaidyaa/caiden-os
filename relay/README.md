@@ -11,6 +11,7 @@ worker fetches the data over HTTPS and serves it to the clock over plain HTTP, o
 | Spotify (with album art) | Relay, after a one-time Spotify sign-in |
 | Cricket | Relay (free Cricinfo feed, or cricketdata.org with your key) |
 | Firmware updates, health report | Relay (images signed on your PC) |
+| Mining (optional) | Relay (Duino-Coin pool address, balance, prices) |
 | Weather, Air quality, Sun & Moon, World clock | The clock itself (Open-Meteo, no account) |
 
 News tabs, markets and the cricket team are set on the clock's settings page (**Feeds** tab). The clock
@@ -89,6 +90,16 @@ tab) and offers **Install CAIDEN OS x.y.z**; nothing installs until you press it
 your clock's own update key (`firmware/tools/ota_key.txt`, which never leaves your PC), so the clock ignores
 images not made on your PC, older versions and damaged downloads. Full steps:
 [docs/UPDATES.md](../docs/UPDATES.md).
+
+## Mining data (clock 0.8.7+)
+
+When mining is on, the clock asks `/duco.json?u=<username>&r=<rig>&d=<date>` every 10 minutes. The relay returns:
+- the pool to connect to, from Duino-Coin's `getPool`;
+- your balance, and what the pool shows for that rig;
+- the DUCO price in INR, from Duino-Coin's `api.json` and open.er-api.com;
+- Bitcoin's network hash rate, from blockchain.info.
+
+"Earned today" is your balance minus the first balance seen that day: one small KV write per day.
 
 ## Checking the clock from anywhere
 

@@ -616,6 +616,40 @@ void NetworkManager::setupRoutes() {
         String r = F("{\"ok\":true,\"tok\":\""); r += sessionToken(); r += F("\"}");
         server.send(200, F("application/json"), r);
     });
+    // Mining analytics for the settings page (logged in): status, rates, shares, history, earnings.
+    // The mining key is never sent back, only whether one is set.
+    server.on("/api/mining", HTTP_GET, [this] {
+        if (!apActive_ && !authed()) { deny(); return; }
+        const Config& c = g_config.get();
+        const MiningData& m = g_state.mine;
+        static const char* const ST[] = {"off", "no account", "finding a pool", "connecting", "mining", "paused", "error"};
+        String j; j.reserve(640);
+        j = F("{\"on\":"); j += c.mineOn ? 1 : 0;
+        j += F(",\"user\":\""); j += esc(c.ducoUser);
+        j += F("\",\"rig\":\""); j += esc(c.ducoRig);
+        j += F("\",\"key\":"); j += c.ducoKey[0] ? 1 : 0;
+        j += F(",\"st\":\""); j += ST[uint8_t(m.status) < 7 ? uint8_t(m.status) : 6];
+        j += F("\",\"why\":\""); j += esc(m.why);
+        j += F("\",\"hr\":"); j += String(m.hr, 1);
+        j += F(",\"acc\":"); j += m.acc;
+        j += F(",\"rej\":"); j += m.rej;
+        j += F(",\"diff\":"); j += m.diff;
+        j += F(",\"secs\":"); j += m.mineMs / 1000;
+        j += F(",\"pool\":\""); j += esc(m.poolName);
+        j += F("\",\"relay\":"); j += m.relayOk ? 1 : 0;
+        j += F(",\"bal\":"); j += String(m.bal, 4);
+        j += F(",\"today\":"); j += String(m.today, 4);
+        j += F(",\"inr\":"); j += String(m.inr, 8);
+        j += F(",\"btc\":"); j += String(m.btcHr, 0);
+        j += F(",\"phr\":"); j += String(m.poolHr, 1);
+        j += F(",\"pacc\":"); j += m.poolAcc;
+        j += F(",\"prej\":"); j += m.poolRej;
+        j += F(",\"hist\":[");
+        for (uint8_t i = 0; i < m.histN; i++) { if (i) j += ','; j += m.hist[i]; }
+        j += F("]}");
+        server.send(200, F("application/json"), j);
+        server.client().flush(1500);
+    });
     server.on("/ping", HTTP_GET, [] { server.send(200, F("text/plain"), F("CAIDEN ok")); });
     // OS connectivity checks (/generate_204, /hotspot-detect.html, /connecttest.txt, ...) have no
     // route on purpose: on the setup AP they fall through to onNotFound's 302 to the portal, the
@@ -650,6 +684,7 @@ void NetworkManager::setupRoutes() {
         j += F(",\"team\":\""); j += esc(c.team); j += '"';
         j += F(",\"sps\":"); j += g_state.bridge.spSetup ? 1 : 0;
         j += F(",\"upd\":\""); j += g_state.bridge.fwV; j += '"';
+        j += F(",\"mon\":"); j += c.mineOn ? 1 : 0;
         j += F(",\"nf\":"); j += c.nightFrom;
         j += F(",\"nt\":"); j += c.nightTo;
         j += F(",\"bright\":"); j += c.brightness;

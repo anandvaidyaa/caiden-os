@@ -22,8 +22,11 @@ public:
     static constexpr int16_t ART = 120;
 private:
     bool fetchFwMeta();
+    bool fetchDuco();
     void installUpdate();
     uint32_t fwNext_ = 120000;
+    uint32_t ducoNext_ = 0;
+    bool ducoWanted_ = false;
     bool installReq_ = false;
     bool getJson(const String& path, uint16_t timeoutMs, JsonDocument& doc);
     bool fetchState();

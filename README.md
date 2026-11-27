@@ -20,6 +20,7 @@ and updated over the air from anywhere.
 - [What you need](#what-you-need)
 - [Install](#install)
 - [Settings page](#settings-page)
+- [Mining (hobby)](#mining-hobby)
 - [Updates](#updates)
 - [Security and privacy](#security-and-privacy)
 - [Troubleshooting](#troubleshooting)
@@ -58,6 +59,9 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
 - **Cricket:** live scores of the team you follow, shown only while it plays. Free, with an optional key for
   overs and match status.
 - **Quote of the day.**
+- **Mining (hobby, off by default):** mines [Duino-Coin](https://duinocoin.com) in the clock's spare time, with a
+  spinning hash-rate orbit, share results, 24-hour history, earnings and a tongue-in-cheek "Bitcoin lottery".
+  See [Mining](#mining-hobby).
 - **Home network:** how many devices are on your network right now, the router, and new arrivals. The clock
   scans its own network every 5 minutes; nothing leaves your network.
 - **Focus:** Pomodoro, countdown timer and stopwatch, controlled from your phone.
@@ -171,6 +175,41 @@ On the settings page you can:
 | **Feeds** | Cloud relay address, news tabs, markets, Bitcoin, news age, cricket team |
 | **Focus** | Pomodoro (4 × 25 min), countdown timer, stopwatch, minutes focused today |
 | **System** | Device info, firmware update, password, city and time zone, Wi-Fi, restart |
+
+## Mining (hobby)
+
+The clock can mine [Duino-Coin](https://duinocoin.com) (DUCO), a coin made for small boards. **It doesn't make
+money.** An ESP8266 earns small amounts of DUCO worth a tiny fraction of a rupee a day, and its power costs
+more than that. It's here for the fun of watching it work, and every number shown is real.
+
+| Coin | On this clock |
+|---|---|
+| Duino-Coin | Works: about 1–3 kH/s in the clock's spare time; earns fractions of a cent a day |
+| Bitcoin | Possible only as a lottery: the odds of finding a block are around 1 in quadrillions per day, so the page just shows them |
+| Monero, Ethereum Classic and others | Can't run: their algorithms need far more memory than the clock's ~11 KB |
+
+**Turn it on:**
+1. Create a free account at [duinocoin.com](https://duinocoin.com) (a web wallet).
+2. On the settings page, open **Feeds**, **Mining**: enter your Duino-Coin username, an optional mining key
+   (if you set one in your wallet), and a rig name (default `caiden`). Press **Save account**.
+3. Switch **Mine Duino-Coin** on. The **Mining** page joins the rotation.
+
+**How it behaves:**
+- **Background only:** it hashes in slices of about 3 ms between screen updates, so pages, the web page and updates
+  stay as smooth as before.
+- **Automatic pauses:** it stops during firmware updates and pauses when free memory drops below 8 KB or Wi-Fi is
+  weaker than -85 dBm.
+- **Mining page:**
+  - a hash-rate orbit that spins faster as the hash rate rises;
+  - a green or red block flash for each accepted or rejected share;
+  - the last 8 shares as a chain;
+  - a 24-hour chart;
+  - DUCO earned today and its INR value;
+  - the odds that this clock finds a Bitcoin block today.
+- **Settings page:** the same numbers, the pool's own view of your rig, and a 24-hour chart.
+- **Remote check:** the relay's `/clock.json` also shows the hash rate and shares.
+- **Privacy:** your username and mining key stay in the clock's settings. The relay looks up your public Duino-Coin
+  balance for the earnings line.
 
 ## Updates
 

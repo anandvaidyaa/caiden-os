@@ -65,6 +65,32 @@ struct OtaState {
     char     err[32] = "";
 };
 
+// Duino-Coin mining (MinerService on the clock, MiningData filled by the miner and the relay).
+enum class MineStatus : uint8_t { Off, NoAccount, WaitingPool, Connecting, Mining, Paused, Error };
+struct MiningData {
+    MineStatus status = MineStatus::Off;
+    char     why[28] = "";              // short reason for Paused / Error
+    float    hr = 0;                    // effective hash rate, H/s (hashes per second of wall time)
+    uint32_t acc = 0, rej = 0;          // shares since start-up
+    uint16_t diff = 0;                  // current share difficulty
+    uint32_t mineMs = 0;                // time spent mining since start-up
+    uint16_t hist[24] = {0};            // hourly average hash rate, oldest first (H/s)
+    uint8_t  histN = 0;
+    uint32_t lastShareAt = 0;           // millis() of the last share result (screen flash)
+    bool     lastGood = false;
+    // from the relay (/duco.json), every 10 minutes while mining
+    char     poolIp[16] = "";
+    uint16_t poolPort = 0;
+    char     poolName[24] = "";
+    bool     relayOk = false;
+    float    bal = 0, today = 0;        // DUCO balance and earned today (relay keeps the day's start)
+    float    inr = 0;                   // price of 1 DUCO in INR (0 = unknown)
+    float    btcHr = 0;                 // Bitcoin network hash rate, H/s
+    float    poolHr = 0;                // what the pool's dashboard shows for this rig
+    uint32_t poolAcc = 0, poolRej = 0;
+    uint16_t version = 0;               // bumps when anything shown changes
+};
+
 struct AppState {
     WeatherData weather;
     AirData     air;
@@ -72,6 +98,7 @@ struct AppState {
     BridgeData  bridge;
     OtaState    ota;
     AlertData   alert;
+    MiningData  mine;
     bool        timeValid = false;
     uint32_t    lastSyncEpoch = 0;   // last successful data sync (unix time)
 };

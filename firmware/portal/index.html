@@ -94,6 +94,7 @@ nav button.on{color:var(--t);background:var(--card);box-shadow:inset 0 0 0 1px v
 .toast.on{transform:translate(-50%,0)}
 .ap nav,.ap .hero,.ap #chips,.locked nav,.locked .hero,.locked #chips{display:none}
 [hidden]{display:none!important}
+#mChart{width:100%;height:64px;margin-top:10px}#mChart rect{fill:var(--h)}
 @supports (color:color-mix(in srgb,red,red)){
 body{background:radial-gradient(70% 45% at 85% 0,color-mix(in srgb,var(--g1) 70%,transparent),transparent 70%),
 radial-gradient(60% 40% at 0 30%,color-mix(in srgb,var(--g2) 45%,transparent),transparent 70%),var(--bg);background-attachment:fixed}
@@ -221,6 +222,13 @@ radial-gradient(60% 40% at 100% 100%,color-mix(in srgb,var(--a2) 18%,transparent
 <button class="btn" id="saveMk">Save markets</button></div>
 <div class="card"><h2>Cricket</h2><label class="f k" for="team">Follow matches of</label><input type="text" id="team" placeholder="India" maxlength="24">
 <p class="note">Live scores come free from Cricinfo. An optional cricketdata.org key (CRICKET_KEY on the relay) adds overs and match status.</p><button class="btn" id="saveCr">Save cricket</button></div>
+<div class="card"><h2>Mining</h2><p class="d">A hobby: the clock mines <a href="https://duinocoin.com" style="color:var(--h)">Duino-Coin</a> in its spare time. An ESP8266 earns fractions of a cent a day and uses a little more power while it mines. Needs a free Duino-Coin account.</p>
+<div class="row" style="padding-top:0"><div><div class="n">Mine Duino-Coin</div><div class="s" id="mSt">Off</div></div><label class="sw"><input type="checkbox" id="mOn"><span></span></label></div>
+<label class="f k" for="mUser">Duino-Coin username</label><input type="text" id="mUser" maxlength="32" autocapitalize="none" autocomplete="off" spellcheck="false">
+<label class="f k" for="mKey">Mining key (optional)</label><input type="password" id="mKey" maxlength="32" autocomplete="off" placeholder="Not set">
+<label class="f k" for="mRig">Rig name</label><input type="text" id="mRig" maxlength="24" autocapitalize="none" spellcheck="false">
+<button class="btn ghost" id="mSave">Save account</button>
+<div id="mStats"></div><svg id="mChart" viewBox="0 0 300 64" preserveAspectRatio="none" hidden></svg><p class="note" id="mNote"></p></div>
 </section>
 
 <!-- ============ focus -->
@@ -262,13 +270,13 @@ air:'<path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>',spotify:'<c
 markets:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',news:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/>',
 calendar:'<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>',world:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
 focus:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/>',cricket:'<circle cx="16" cy="16" r="4"/><path d="M4 4l9 9M3 6l3-3"/>',system:'<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
-sun:'<circle cx="12" cy="14" r="4"/><path d="M3 19h18M12 4v3M5 8l2 2M19 8l-2 2"/>',quote:'<path d="M7 17c-2 0-3-1.5-3-3.5S5.5 9 9 7M16 17c-2 0-3-1.5-3-3.5S14.5 9 18 7"/>',speed:'<path d="M4 17a8 8 0 1 1 16 0M12 17l4-5"/>',lan:'<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7l-6 10M12 7l6 10"/>',
+sun:'<circle cx="12" cy="14" r="4"/><path d="M3 19h18M12 4v3M5 8l2 2M19 8l-2 2"/>',quote:'<path d="M7 17c-2 0-3-1.5-3-3.5S5.5 9 9 7M16 17c-2 0-3-1.5-3-3.5S14.5 9 18 7"/>',speed:'<path d="M4 17a8 8 0 1 1 16 0M12 17l4-5"/>',mining:'<path d="M5 19l9-9M9 5c4-2 8 0 10 4-3-1-6-1-9 1"/>',lan:'<circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7l-6 10M12 7l6 10"/>',
 display:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/>',pages:'<rect x="3" y="4" width="8" height="7" rx="2"/><rect x="13" y="4" width="8" height="7" rx="2"/><rect x="3" y="13" width="8" height="7" rx="2"/><rect x="13" y="13" width="8" height="7" rx="2"/>'};
 const svg=n=>'<svg viewBox="0 0 24 24">'+I[n]+'</svg>';
 // PAGES order in firmware (bit = index); system is a manual page only
 const PG=[['home','Home','Time & orbit'],['spotify','Spotify','Now playing'],['focus','Focus','Pomodoro & timers'],['cricket','Cricket','During India matches'],
 ['weather','Weather','Forecast'],['air','Air quality','NAQI & PM'],['calendar','Calendar','Next events'],['world','World clock','4 cities'],['markets','Markets','NIFTY, SENSEX, BTC'],['news','News','Headlines'],
-['sun','Sun & Moon','Daylight, moon phase'],['quote','Quote','Quote of the day'],['speed','Connection','removed'],['lan','Network','Devices online']];
+['sun','Sun & Moon','Daylight, moon phase'],['quote','Quote','Quote of the day'],['speed','Connection','removed'],['lan','Network','Devices online'],['mining','Mining','Duino-Coin miner']];
 const TH=[['midnight','Midnight Luxe','Deep blue','#050a1c','#1e3fa8','#3d7bff','#f3f6ff'],['aurora','Aurora','Violet & teal','#08061a','#5a2dc8','#2ee6d6','#f6f3ff'],
 ['crystal','Crystal','Bright & clean','#eef2fb','#b9ccff','#2b5bf0','#0d1530'],['hypertech','Hypertech','Neon cyan','#02050b','#063a55','#00e1ff','#e9fbff']];
 const TZ=[['IST-5:30','India (IST)'],['UTC0','UTC'],['GMT0BST,M3.5.0/1,M10.5.0','London'],['CET-1CEST,M3.5.0,M10.5.0/3','Berlin / Paris'],['<+04>-4','Dubai'],
@@ -290,7 +298,7 @@ function range(el,out,suffix){const p=()=>{busy=Date.now();const v=+el.value;el.
 const NAV=[['home','Home'],['display','Display'],['pages','Pages'],['feeds','Feeds'],['focus','Focus'],['system','System']];
 $('#nav').innerHTML=NAV.map(([k,l])=>'<button data-t="'+k+'">'+svg(k=='feeds'?'news':k)+l+'</button>').join('');
 $$('#nav button').forEach(b=>b.onclick=()=>show(b.dataset.t));
-function show(t){tab=t;if(t=='feeds')loadFeeds();$$('section').forEach(s=>s.classList.toggle('on',s.id==t));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));scrollTo({top:0,behavior:'smooth'})}
+function show(t){tab=t;if(t=='feeds'){loadFeeds();loadMine(1)}$$('section').forEach(s=>s.classList.toggle('on',s.id==t));$$('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==t));scrollTo({top:0,behavior:'smooth'})}
 $('#tiles').innerHTML=[...PG,['system','System','Device info']].filter(x=>x[0]!='calendar'&&x[0]!='speed').map(([k,n,d])=>'<button class="tile" data-p="'+k+'">'+svg(k)+'<span>'+n+'</span><small>'+d+'</small></button>').join('');
 $$('.tile').forEach(b=>b.onclick=()=>post('/api/page',{name:b.dataset.p}).then(()=>{toast('Showing '+b.querySelector('span').textContent);setTimeout(poll,900)}).catch(()=>toast('Could not reach the clock')));
 $('#themes').innerHTML=TH.map(([k,n,d,bg,g,a,t])=>'<button class="th" data-v="'+k+'"><div class="pv" style="--c:'+a+';color:'+t+';background:radial-gradient(90% 90% at 80% 0,'+g+','+bg+' 70%)"><i></i><em>09:41</em></div><b>'+n+'</b><small>'+d+'</small></button>').join('');
@@ -364,6 +372,29 @@ $('#lshow').onclick=showPw;$('#pwShow').onclick=showPw;
 $('#pwNew').onclick=()=>{if(!confirm('Make a new password? Every other phone and computer is logged out. The new one shows on the clock.'))return;
  post('/api/newpw',{}).then(r=>{keepTok(r.tok);toast('New password: see the clock')}).catch(()=>toast('Could not make a new password'))};
 $('#pwOut').onclick=()=>{keepTok('');toast('Logged out');poll()};
+// ---- mining (Feeds tab): /api/mining, refreshed every 5 s while the tab is open
+let MI=null;
+const big=n=>{const w=['','thousand','million','billion','trillion','quadrillion','quintillion','sextillion','septillion'];let k=0;while(n>=1000&&k<8){n/=1000;k++}return(k?n.toFixed(1):n.toFixed(0))+(k?' '+w[k]:'')};
+const dur=s=>s>=3600?(s/3600|0)+' h '+(s%3600/60|0)+' min':(s/60|0)+' min';
+function loadMine(first){return fetch('/api/mining',{cache:'no-store',headers:{'X-Caiden-Auth':TOK}}).then(r=>r.ok?r.json():null).then(m=>{if(!m)return;MI=m;
+ if(first||document.activeElement.id!='mUser')$('#mUser').value=m.user;if(first||document.activeElement.id!='mRig')$('#mRig').value=m.rig;$('#mKey').placeholder=m.key?'Set (unchanged if empty)':'Not set';
+ $('#mOn').checked=!!m.on;$('#mSt').textContent=m.on?(m.st[0].toUpperCase()+m.st.slice(1)+(m.why?' · '+m.why:'')):'Off';
+ const tot=m.acc+m.rej,hr=m.hr>=1000?(m.hr/1000).toFixed(2)+' kH/s':Math.round(m.hr)+' H/s',inr=m.inr*m.today;
+ const odds=m.hr>0&&m.btc>0?'1 in '+big(m.btc/(m.hr/3*144)):'-';
+ const rows=!m.on?[]:[['Hash rate',hr],['Shares',m.acc+' accepted · '+m.rej+' rejected'+(tot?' ('+Math.round(m.acc*100/tot)+'% good)':'')],['Difficulty',m.diff||'-'],['Mining for',dur(m.secs)],
+  ['Earned today',m.relay?m.today.toFixed(4)+' DUCO'+(m.inr>0?' · ₹'+(inr>0&&inr<0.01?inr.toPrecision(2):inr.toFixed(4)):''):'waiting for the relay'],['Balance',m.relay?m.bal.toFixed(4)+' DUCO':'-'],['Pool',m.pool||'-'],
+  ['Pool sees this rig',m.relay?(m.phr>=1000?(m.phr/1000).toFixed(2)+' kH/s':Math.round(m.phr)+' H/s')+' · '+m.pacc+' accepted':'-'],['Bitcoin block today',odds]];
+ $('#mStats').innerHTML=rows.map(()=>'<div class="row"><span class="n"></span><span class="v"></span></div>').join('');
+ $$('#mStats .row').forEach((r,i)=>{r.firstChild.textContent=rows[i][0];r.lastChild.textContent=rows[i][1]});
+ const h=[...m.hist,Math.round(m.hr)],mx=Math.max(1,...h),bw=300/24;$('#mChart').hidden=!m.on;
+ $('#mChart').innerHTML=h.map((v,i)=>'<rect x="'+((24-h.length+i)*bw+1)+'" y="'+(64-60*v/mx)+'" width="'+(bw-2)+'" height="'+(60*v/mx)+'" rx="2" opacity="'+(i==h.length-1?1:.55)+'"/>').join('');
+ $('#mNote').textContent=m.on?'Bars: hourly average hash rate over 24 h (last bar: now). The clock pauses mining during updates and when memory or Wi-Fi run low.':''}).catch(()=>{})}
+setInterval(()=>{if(!document.hidden&&tab=='feeds')loadMine()},5000);
+$('#mOn').onchange=()=>{const on=$('#mOn').checked;if(on&&!$('#mUser').value.trim()){$('#mOn').checked=false;return toast('Add your Duino-Coin username first')}
+ set({mine:on?1:0},on?'Mining on':'Mining off').then(()=>setTimeout(loadMine,800))};
+$('#mSave').onclick=()=>{const u=$('#mUser').value.trim(),k=$('#mKey').value.trim(),r=$('#mRig').value.trim()||'caiden';
+ if(/[\s,]/.test(u+k+r))return toast('No spaces or commas');const o={duser:u,drig:r};if(k)o.dkey=k;
+ set(o,'Mining account saved').then(()=>{$('#mKey').value='';setTimeout(loadMine,800)})};
 $('#restart').onclick=()=>{if(confirm('Restart the clock now?'))post('/api/restart',{}).then(()=>toast('Restarting…')).catch(()=>toast('Failed'))};
 // ---- state
 function lockView(s){S=null;document.body.classList.add('locked');document.documentElement.dataset.th=s.theme||'midnight';

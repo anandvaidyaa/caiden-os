@@ -53,6 +53,10 @@ bool ConfigurationManager::load() {
     cfg_.newsAge = doc["nage"] | cfg_.newsAge;
     if (cfg_.newsAge < 1 || cfg_.newsAge > 168) cfg_.newsAge = 24;
     if (!doc["team"].isNull()) copyStr(cfg_.team, sizeof cfg_.team, doc["team"] | "");
+    cfg_.mineOn = doc["mon"] | false;
+    copyStr(cfg_.ducoUser, sizeof cfg_.ducoUser, doc["duser"] | "");
+    copyStr(cfg_.ducoKey, sizeof cfg_.ducoKey, doc["dkey"] | "");
+    if (!doc["drig"].isNull()) copyStr(cfg_.ducoRig, sizeof cfg_.ducoRig, doc["drig"] | "caiden");
     Serial.printf("[cfg] loaded: city=%s theme=%s wifi=%s\n", cfg_.city, cfg_.theme, cfg_.ssid[0] ? "set" : "none");
     return true;
 }
@@ -89,6 +93,10 @@ bool ConfigurationManager::save() {
     doc["btc"] = cfg_.btc;
     doc["nage"] = cfg_.newsAge;
     doc["team"] = cfg_.team;
+    doc["mon"] = cfg_.mineOn;
+    doc["duser"] = cfg_.ducoUser;
+    doc["dkey"] = cfg_.ducoKey;
+    doc["drig"] = cfg_.ducoRig;
     // write to a temp file then rename: a power cut never leaves a half-written config
     File f = LittleFS.open("/config.tmp", "w");
     if (!f) return false;

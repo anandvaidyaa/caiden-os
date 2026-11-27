@@ -55,7 +55,8 @@ private:
     uint32_t motionStart_ = 0;                       // 0 = still drawing the head start
     uint8_t bright_ = 180;
     int16_t pendingBright_ = -1;
-    bool curHeader_ = false, musicShown_ = false;    // music badge (lumen::header)
+    bool curHeader_ = false;
+    uint8_t musicShown_ = 0;                          // header badges shown: 1 music, 2 mining on, 4 mining active
     uint32_t lastEq_ = 0;
     // page indicator
     int8_t pageIdx_ = -1;

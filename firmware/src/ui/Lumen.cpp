@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include "../services/ClockService.h"
 #include "../configuration/ConfigurationManager.h"
+#include "../state/AppState.h"
 
 namespace lumen {
 
@@ -269,41 +270,77 @@ void header(Canvas& c, const Theme& t, const char* title, HeaderIcon icon, uint1
             const char* live, uint32_t dataAt) {
     // CAIDEN OS 3 whisper line: no icon or Wi-Fi glyph, just a coloured dot (the old icon colour),
     // the page label and the time. Offline: the time turns quiet and a red dot sits beside it.
+    // Laid out right to left: time (or LIVE, or the data's age), then the music and mining badges,
+    // then the title, shortened to the room that is left. Nothing overlaps.
     (void)icon;
     g_headerDrawn = true;
-    const bool music = musicPlaying();
+    int16_t rx;                                   // left edge of the right-hand block
+    if (live) {                                   // e.g. "LIVE" with a red dot instead of the time
+        int16_t w = c.text(W - M, 21, live, FONT_L_LABEL, t.text, Align::Right, 1);
+        c.glow(W - M - w - 8, 17, 8, t.bad, 120);
+        c.fillCircle(W - M - w - 8, 17, 3, t.bad);
+        rx = W - M - w - 12;
+    } else {
+        const time_t now = time(nullptr);
+        if (dataAt && now > time_t(dataAt) + 1800) {   // stale (relay away): show the data's age
+            const uint32_t m = uint32_t(now - dataAt) / 60;
+            char age[16];
+            if (m < 60) snprintf(age, sizeof age, "%uM AGO", unsigned(m));
+            else if (m < 48 * 60) snprintf(age, sizeof age, "%uH AGO", unsigned(m / 60));
+            else snprintf(age, sizeof age, "%uD AGO", unsigned(m / 1440));
+            int16_t w = c.text(W - M, 21, age, FONT_L_LABEL, t.warn, Align::Right, 1);
+            c.fillCircle(W - M - w - 7, 17, 2.4f, t.warn);
+            rx = W - M - w - 10;
+        } else {
+            char hh[4], mm[4], tbuf[10];
+            bool am;
+            g_clock.hhmm(hh, mm, g_config.get().h24, am);   // follows the 12/24 h setting, like home
+            snprintf(tbuf, sizeof tbuf, "%s:%s", hh, mm);
+            int16_t w = c.text(W - M, 22, tbuf, FONT_L_NUM_S, bars ? t.text2 : t.text3, Align::Right);
+            if (!bars) c.fillCircle(W - M - w - 7, 17, 2.4f, t.bad);
+            rx = W - M - w - (bars ? 0 : 10);
+        }
+    }
+    // badges, right to left, 8 px apart; the phase comes from the clock so any redraw matches
+    float x = rx - 8;
+    if (musicPlaying()) {
+        x -= 17;
+        eqBars(c, x, 16, 11, t.highlight, (millis() % 2400) / 2400.f);
+        x -= 8;
+    }
+    if (miningShown()) {
+        x -= 12;
+        mineBadge(c, t, x, 16, miningActive(), (millis() % 700) / 700.f);
+        x -= 8;
+    }
     c.glow(M + 2, 17, 7, iconCol, 90);
     c.fillCircle(M + 2, 17, 2.4f, iconCol);
     char up[40], fit[40];
     snprintf(up, sizeof up, "%s", title);
     for (char* p = up; *p; p++) *p = toupper(uint8_t(*p));
-    Canvas::ellipsize(up, FONT_L_LABEL, music ? 120 : 150, fit, sizeof fit);
+    Canvas::ellipsize(up, FONT_L_LABEL, int16_t(x - (M + 11)), fit, sizeof fit);
     label(c, M + 11, 21, fit, t.text2);
-    // music badge: same equaliser as the home page, phase from the clock so any redraw matches
-    if (music) eqBars(c, R_MUSIC_BADGE.x + 4, 16, 11, t.highlight, (millis() % 2400) / 2400.f);
-    if (live) {                                   // e.g. "LIVE" with a red dot instead of the time
-        int16_t w = c.text(W - M, 21, live, FONT_L_LABEL, t.text, Align::Right, 1);
-        c.glow(W - M - w - 8, 17, 8, t.bad, 120);
-        c.fillCircle(W - M - w - 8, 17, 3, t.bad);
-        return;
+}
+
+bool miningShown() { return g_config.get().mineOn; }
+bool miningActive() { return g_config.get().mineOn && g_state.mine.status == MineStatus::Mining; }
+
+void mineBadge(Canvas& c, const Theme& t, float x, float cy, bool active, float phase) {
+    // a pickaxe pivoting at its handle end (bottom left), tapping the ground; a spark on each tap
+    const float DEG = 0.01745329f;
+    float ang = -48;                                          // resting angle (degrees, -90 = up)
+    if (active) ang = phase < 0.7f ? -72 + 36 * (phase / 0.7f) * (phase / 0.7f) : -36;
+    const float px = x + 2, py = cy + 5, len = 11;
+    const float dx = cosf(ang * DEG), dy = sinf(ang * DEG), tx = px + dx * len, ty = py + dy * len;
+    const uint16_t col = active ? t.sun : t.text3;
+    c.line(px, py, tx, ty, 1.6f, col);                         // handle
+    c.line(tx - dy * 4.5f - dx * 1.5f, ty + dx * 4.5f - dy * 1.5f, tx + dy * 4.5f, ty - dx * 4.5f, 2.0f, col);   // head
+    if (active && phase >= 0.7f) {
+        const float k = (phase - 0.7f) / 0.3f;
+        c.setOpacity(uint8_t(255 * (1 - k)));
+        c.fillCircle(tx + dy * 4.5f + 2 + 3 * k, ty - dx * 4.5f - 2 * k, 1.2f, rgb(0xFFF6D8));
+        c.setOpacity(255);
     }
-    const time_t now = time(nullptr);
-    if (dataAt && now > time_t(dataAt) + 1800) {   // stale (bridge and relay away): show the data's age
-        const uint32_t m = uint32_t(now - dataAt) / 60;
-        char age[16];
-        if (m < 60) snprintf(age, sizeof age, "%uM AGO", unsigned(m));
-        else if (m < 48 * 60) snprintf(age, sizeof age, "%uH AGO", unsigned(m / 60));
-        else snprintf(age, sizeof age, "%uD AGO", unsigned(m / 1440));
-        int16_t w = c.text(W - M, 21, age, FONT_L_LABEL, t.warn, Align::Right, 1);
-        c.fillCircle(W - M - w - 7, 17, 2.4f, t.warn);
-        return;
-    }
-    char hh[4], mm[4], tbuf[10];
-    bool am;
-    g_clock.hhmm(hh, mm, g_config.get().h24, am);   // follows the 12/24 h setting, like home
-    snprintf(tbuf, sizeof tbuf, "%s:%s", hh, mm);
-    int16_t w = c.text(W - M, 22, tbuf, FONT_L_NUM_S, bars ? t.text2 : t.text3, Align::Right);
-    if (!bars) c.fillCircle(W - M - w - 7, 17, 2.4f, t.bad);
 }
 
 void segments(Canvas& c, const Theme& t, uint8_t n, uint8_t i, float frac, float y, float x0, float x1) {

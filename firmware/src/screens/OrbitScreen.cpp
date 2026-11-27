@@ -89,12 +89,14 @@ void OrbitScreen::update(uint32_t now, DirtySet& d) {
         uint8_t n = br.online ? br.notify : 0;
         bool pl = br.online && br.sp.on && br.sp.playing;
         if (n != notify_) { notify_ = n; d.add(Rect(206, 4, 34, 32)); }
-        if (pl != playing_) { playing_ = pl; d.add(Rect(8, 206, 30, 20)); }
+        if (pl != playing_) { playing_ = pl; d.add(Rect(8, 206, 52, 20)); }
     }
-    if (playing_ && now - lastEq_ >= 83) {       // equaliser ~12 fps
+    const uint8_t mine = uint8_t((miningShown() ? 1 : 0) | (miningActive() ? 2 : 0));
+    if (mine != mineShown_) { mineShown_ = mine; d.add(Rect(8, 206, 52, 20)); }
+    if ((playing_ || (mine & 2)) && now - lastEq_ >= 83) {   // equaliser and pickaxe ~12 fps
         lastEq_ = now;
         eqPhase_ = (now % 2400) / 2400.f;
-        d.add(Rect(8, 206, 30, 20));
+        d.add(Rect(8, 206, 52, 20));
     }
 }
 
@@ -273,6 +275,8 @@ void OrbitScreen::render(Canvas& c, const Theme& t) {
     iconBell(c, 219, 22, 16, t.text2);
     const BridgeData& br = g_state.bridge;
     if (br.online && br.notify) badge(c, 226, 16, br.notify, t.accent2, t.bg, true);
-    if (br.online && br.sp.on && br.sp.playing) eqBars(c, 13, 218, 12, t.highlight, eqPhase_);
+    const bool eq = br.online && br.sp.on && br.sp.playing;
+    if (eq) eqBars(c, 13, 218, 12, t.highlight, eqPhase_);
+    if (miningShown()) mineBadge(c, t, eq ? 36 : 13, 218, miningActive(), (millis() % 700) / 700.f);
     if (!cfg.h24 && timeOk) label(c, 227, 224, tm.tm_hour < 12 ? "AM" : "PM", t.text3, Align::Right);
 }

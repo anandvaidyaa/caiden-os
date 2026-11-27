@@ -261,9 +261,10 @@ void UIManager::loop(uint32_t now) {
         if (a != bannerAlpha_) { bannerAlpha_ = a; dirty_.add(R_BANNER); }
     }
     // music badge in the page header while Spotify plays: ~12 fps, only its small rect is redrawn
-    const bool music = lumen::musicPlaying();
-    if (music != musicShown_) { musicShown_ = music; if (curHeader_) dirty_.add(lumen::R_HEADER); }
-    else if (music && curHeader_ && now - lastEq_ >= 83) { lastEq_ = now; dirty_.add(lumen::R_MUSIC_BADGE); }
+    const uint8_t badges = uint8_t((lumen::musicPlaying() ? 1 : 0) | (lumen::miningShown() ? 2 : 0) |
+                                   (lumen::miningActive() ? 4 : 0));
+    if (badges != musicShown_) { musicShown_ = badges; if (curHeader_) dirty_.add(lumen::R_HEADER); }
+    else if ((badges & 5) && curHeader_ && now - lastEq_ >= 83) { lastEq_ = now; dirty_.add(lumen::R_BADGES); }
     cur_->update(now, dirty_);
     renderDirty();
 }

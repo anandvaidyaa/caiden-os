@@ -605,7 +605,7 @@ void QuoteScreen::update(uint32_t now, DirtySet& d) {
 }
 void QuoteScreen::render(Canvas& c, const Theme& t) {
     const QuoteData& q = g_state.bridge.qt;
-    header(c, t, "Quote of the day", nullptr, t.accent, wifiBars());
+    header(c, t, "Quote", nullptr, t.accent, wifiBars());
     if (!q.text[0]) {
         emptyState(c, t, iconQuote, PSTR("No quote yet"), PSTR("Today's quote arrives with the bridge"));
         return;
@@ -657,7 +657,7 @@ void LanScreen::update(uint32_t now, DirtySet& d) {
 void LanScreen::render(Canvas& c, const Theme& t) {
     char _t[48];
     const LanData& l = g_state.bridge.ln;
-    header(c, t, "Home network", nullptr, t.highlight, wifiBars(), nullptr, g_state.bridge.lnAt);
+    header(c, t, "Network", nullptr, t.highlight, wifiBars(), nullptr, g_state.bridge.lnAt);
     if (!l.count) {
         emptyState(c, t, iconLan, PSTR("Scanning the network"), PSTR("Devices appear after the first scan"));
         return;

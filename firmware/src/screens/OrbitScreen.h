@@ -30,4 +30,5 @@ private:
     uint16_t brVer_ = 0;
     uint8_t notify_ = 0;
     bool playing_ = false;
+    uint8_t mineShown_ = 0;           // pickaxe badge: 1 mining on, 2 hashing
 };

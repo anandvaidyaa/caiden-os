@@ -43,9 +43,15 @@ void header(Canvas& c, const Theme& t, const char* title, HeaderIcon icon, uint1
 static const Rect HEADER_TIME_RECT(150, 8, 90, 22);     // time + Wi-Fi region (minute updates)
 // Music badge: a small bouncing equaliser in every page header while Spotify plays.
 // UIManager redraws only this rect (~12 fps); header() shortens the title to leave room for it.
-static const Rect R_MUSIC_BADGE(146, 8, 26, 18);
+// header badges (music equaliser, mining pickaxe): placed right to left before the time, so this rect
+// covers every position they can take (the time, LIVE or a data age decides where they start)
+static const Rect R_BADGES(96, 4, 96, 24);
 static const Rect R_HEADER(0, 4, 240, 26);
 bool musicPlaying();
+bool miningShown();                                     // mining is switched on (badge visible)
+bool miningActive();                                    // and hashing right now (badge animates)
+// small pickaxe tapping at the ground; x = left edge, about 12 px wide; phase 0..1
+void mineBadge(Canvas& c, const Theme& t, float x, float cy, bool active, float phase);
 extern bool g_headerDrawn;                              // set by header(): the page has a header
 // Glass surface: translucent fill + 1 px border + brighter top edge.
 void glassCard(Canvas& c, const Theme& t, float x, float y, float w, float h, float r);

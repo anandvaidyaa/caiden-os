@@ -72,6 +72,7 @@ bool MinerService::parseJob() {   // "<40 hex last hash>,<40 hex expected>,<diff
     nonce_ = 0;
     maxNonce_ = uint32_t(diff) * 100 + 1;
     jobUs_ = 0;
+    jobAt_ = waitSince_;   // when the job was requested: includes the round trip, like the pool's clock
     if (g_state.mine.diff != uint16_t(diff)) { g_state.mine.diff = uint16_t(diff); g_state.mine.version++; }
     return true;
 }
@@ -106,8 +107,11 @@ void MinerService::hashSlice(uint32_t now) {
 
 void MinerService::submit(uint32_t nonce) {
     const Config& c = g_config.get();
-    // the rate of this job while hashing (what the official miners report)
-    const float rate = jobUs_ ? nonce * 1e6f / float(jobUs_) : 0;
+    // The pool checks the reported rate against its own clock (job sent -> answer received) and rejects
+    // shares whose rate it can't have measured ("BAD,Modified hashrate"). Hashing in slices makes the
+    // time spent hashing much shorter than that, so report the wall-clock rate since the job arrived.
+    const uint32_t wallMs = millis() - jobAt_ + 1;
+    const float rate = nonce * 1000.f / float(wallMs);
     cli_.printf_P(PSTR("%lu,%.2f,CAIDEN OS Miner " CAIDEN_FW_VERSION ",%s,DUCOID%08X,%lu\n"), (unsigned long)nonce, rate,
                 c.ducoRig[0] ? c.ducoRig : "caiden", unsigned(ESP.getChipId()), (unsigned long)walletId_);
     st_ = St::ResultWait;

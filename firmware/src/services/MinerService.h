@@ -39,7 +39,7 @@ private:
     // job
     br_sha1_context base_;
     uint8_t want_[20];
-    uint32_t nonce_ = 0, maxNonce_ = 0, jobUs_ = 0;
+    uint32_t nonce_ = 0, maxNonce_ = 0, jobUs_ = 0, jobAt_ = 0;   // jobAt_: millis() when the job arrived
     // stats
     uint32_t hashes_ = 0, rateFrom_ = 0, rateHashes_ = 0, hourFrom_ = 0, hourHashes_ = 0, mineFrom_ = 0;
     uint32_t walletId_ = 0;

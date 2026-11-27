@@ -30,27 +30,39 @@ and updated over the air from anywhere.
 
 ## What's new
 
-The latest firmware is **0.9.5**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
+The latest firmware is **0.9.8**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
 
-### Mining page: a miner at work
+### Mining page: the crystal mine
 
-![Mining page](docs/images/mining.png)
+<p align="center"><img src="docs/images/mining.gif" width="320" alt="Mining page animation"></p>
 
-The Mining page shows a little miner with a helmet lamp swinging a pickaxe at a crystal rock:
-- **Swing speed:** faster as the hash rate rises.
-- **Sparks:** every strike throws them.
-- **Accepted shares:** pop a **D** coin out of the rock into the DUCO-earned counter.
-- **Rejected shares:** make him say "Oops".
-- **Paused:** his speech bubble says why ("Low memory", "Finding a pool...", ...).
+A tiny crystal mine, drawn live by the clock:
+- **The cave:** a hanging lantern, a rocky ceiling with stalactites, rails with wooden sleepers, and a mine cart.
+- **The miner:** rosy cheeks, blinking eyes and a helmet lamp whose beam lights up the ore. He swings faster as
+  the hash rate rises, and the pickaxe leaves motion-blur ghosts.
+- **The ore:** faceted crystal shards that shimmer and twinkle, and flash on every strike. Each impact throws
+  sparks and rock chips.
+- **Accepted share:** a coin with a trail flies out of the ore into the cart, the cart bounces, and "+1" floats
+  up. The pile of coins in the cart grows over the session.
+- **Rejected share:** he says "Oops - bad share".
+- **Paused:** he sits down and dozes ("Zzz"), and his speech bubble says why ("Low memory", "Finding a pool...").
 
-Below the scene:
-- hash rate;
-- accepted and rejected shares, with the percentage good;
-- a 24-hour line;
-- today's INR value and your DUCO total;
-- the odds of this clock finding a Bitcoin block today.
+![Mining page moments](docs/images/mining.png)
 
-Only the arm, the sparks and the flying coin are redrawn, so mining keeps most of the processor.
+Below the scene, a glass card shows:
+- the hash rate in gradient digits;
+- an acceptance ring (percentage of good shares) and the share counts;
+- a filled 24-hour hash-rate chart;
+- a ticker that alternates every 5 seconds between today's INR value with your DUCO total, and the odds of
+  this clock finding a Bitcoin block today.
+
+The pill at the top shows DUCO earned today. The page follows the theme, including the light Crystal theme:
+
+![Mining page in all four themes](docs/images/mining_themes.png)
+
+While animating, only the swinging arm redraws, 4 times a second, plus the sparks during an impact, the ore's
+shimmer once a second, and the coin's path and the cart when a share lands. Each frame costs about 17 ms, so
+mining keeps its full speed (about 40 kH/s, measured) even while this page is on screen.
 
 ### Badges in every page header
 
@@ -108,6 +120,9 @@ title, which gets shortened with "…" if it doesn't fit. Nothing overlaps.
 
 | Version | Change |
 |---|---|
+| 0.9.8 | Mining page redraws far less (17 ms per frame instead of 100-160 ms): mining keeps ~40 kH/s while it's shown |
+| 0.9.7 | Mining page: nothing overflows (share counts, ring percentage, speech bubble, cave ceiling) |
+| 0.9.6 | Mining page redesigned: the animated crystal mine |
 | 0.9.5 | The Mining card's 24-hour chart shows (it stayed hidden) |
 | 0.9.4 | Faster mining kernel, 15 ms mining slices on still pages, `minebench` USB command, quieter pickaxe badge |
 | 0.9.2 | Spotify checks no longer freeze the clock |
@@ -158,7 +173,7 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
   overs and match status.
 - **Quote of the day.**
 - **Mining (hobby, off by default):** mines [Duino-Coin](https://duinocoin.com) in the clock's spare time at
-  about 30–40 kH/s, with an animated miner, share results, a 24-hour history, earnings and a tongue-in-cheek
+  about 30–40 kH/s, with an animated crystal mine, share results, a 24-hour history, earnings and a tongue-in-cheek
   "Bitcoin lottery". A small pickaxe in every header shows it's running. See [Mining](#mining-hobby).
 - **Network:** how many devices are on your network right now, the router, and new arrivals. The clock
   scans its own network every 5 minutes; nothing leaves your network.
@@ -297,8 +312,8 @@ more than that. It's here for the fun of watching it work, and every number show
   stay as smooth as before.
 - **Automatic pauses:** it stops during firmware updates and pauses when free memory drops below 8 KB or Wi-Fi is
   weaker than -85 dBm.
-- **Mining page:** an animated miner swinging a pickaxe; see the picture under [What's new](#whats-new).
-  - Coins fly into the DUCO counter for accepted shares, and he says "Oops" for rejected ones.
+- **Mining page:** an animated crystal mine; see [What's new](#whats-new) for the animation.
+  - Coins fly into a mine cart for accepted shares, and the miner says "Oops" for rejected ones.
   - Below: hash rate, shares, a 24-hour line, today's INR value and your total, and the Bitcoin odds.
 - **Header badge:** a small gold pickaxe in every page header (grey while paused), next to the Spotify equaliser.
 - **Settings page:** the same numbers, the pool's own view of your rig, and a 24-hour chart.

@@ -468,8 +468,8 @@ void loop() {
     if (!g_ui.transitioning()) {
         g_weather.loop(g_net.online() && g_clock.valid());
         g_bridge.loop(g_net.online());
-        g_lan.loop(g_net.online());
-        g_miner.loop(g_net.online());        // Duino-Coin hobby miner: spare time only, off by default          // Home network page: the clock's own device count
+        g_lan.loop(g_net.online());          // Home network page: the clock's own device count
+        g_miner.loop(g_net.online());        // Duino-Coin hobby miner: spare time only, off by default
     }
 
     static uint32_t lastAlert = 0;

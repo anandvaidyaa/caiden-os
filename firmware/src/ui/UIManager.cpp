@@ -204,6 +204,7 @@ void UIManager::renderDirty() {
     for (uint8_t i = 0; i < dirty_.count(); i++)
         us += r_->draw(dirty_[i], [this](Canvas& c) { paint(c, cur_); });
     dirty_.clear();
+    lastDrawAt_ = millis();
     lastUs_ = us;
 }
 
@@ -264,7 +265,7 @@ void UIManager::loop(uint32_t now) {
     const uint8_t badges = uint8_t((lumen::musicPlaying() ? 1 : 0) | (lumen::miningShown() ? 2 : 0) |
                                    (lumen::miningActive() ? 4 : 0));
     if (badges != musicShown_) { musicShown_ = badges; if (curHeader_) dirty_.add(lumen::R_HEADER); }
-    else if ((badges & 5) && curHeader_ && now - lastEq_ >= 83) { lastEq_ = now; dirty_.add(lumen::R_BADGES); }
+    else if ((badges & 5) && curHeader_ && now - lastEq_ >= ((badges & 1) ? 83u : 250u)) { lastEq_ = now; dirty_.add(lumen::R_BADGES); }
     cur_->update(now, dirty_);
     renderDirty();
 }

@@ -310,7 +310,7 @@ void header(Canvas& c, const Theme& t, const char* title, HeaderIcon icon, uint1
     }
     if (miningShown()) {
         x -= 12;
-        mineBadge(c, t, x, 16, miningActive(), (millis() % 700) / 700.f);
+        mineBadge(c, t, x, 16, miningActive(), (millis() % 1000) / 1000.f);
         x -= 8;
     }
     c.glow(M + 2, 17, 7, iconCol, 90);

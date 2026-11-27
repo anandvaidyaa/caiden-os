@@ -28,6 +28,8 @@ public:
     void invalidateAll() { dirty_.addAll(); }
     void loop(uint32_t now);
     bool transitioning() const { return phase_ != Phase::Idle; }
+    // something was redrawn in the last 150 ms (or a page change runs): the miner then hashes in short slices
+    bool animating(uint32_t now) const { return phase_ != Phase::Idle || now - lastDrawAt_ < 150; }
     Screen* current() const { return cur_; }
     Screen* target() const { return phase_ == Phase::Idle ? cur_ : next_; }
     const Theme& themeRef() const { return *theme_; }
@@ -57,7 +59,7 @@ private:
     int16_t pendingBright_ = -1;
     bool curHeader_ = false;
     uint8_t musicShown_ = 0;                          // header badges shown: 1 music, 2 mining on, 4 mining active
-    uint32_t lastEq_ = 0;
+    uint32_t lastEq_ = 0, lastDrawAt_ = 0;
     // page indicator
     int8_t pageIdx_ = -1;
     uint8_t pageCount_ = 0;

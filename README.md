@@ -184,7 +184,7 @@ more than that. It's here for the fun of watching it work, and every number show
 
 | Coin | On this clock |
 |---|---|
-| Duino-Coin | Works: about 20–30 kH/s in the clock's spare time (0.9.0+); earns fractions of a cent a day |
+| Duino-Coin | Works: about 30–40 kH/s in the clock's spare time (0.9.4+); earns fractions of a cent a day |
 | Bitcoin | Possible only as a lottery: the odds of finding a block are around 1 in quadrillions per day, so the page just shows them |
 | Monero, Ethereum Classic and others | Can't run: their algorithms need far more memory than the clock's ~11 KB |
 
@@ -195,7 +195,7 @@ more than that. It's here for the fun of watching it work, and every number show
 3. Switch **Mine Duino-Coin** on. The **Mining** page joins the rotation.
 
 **How it behaves:**
-- **Background only:** it hashes in slices of about 6 ms between screen updates, so pages, the web page and updates
+- **Background only:** it hashes in slices of 6 ms between screen updates (15 ms while the page is still), so pages, the web page and updates
   stay as smooth as before.
 - **Automatic pauses:** it stops during firmware updates and pauses when free memory drops below 8 KB or Wi-Fi is
   weaker than -85 dBm.

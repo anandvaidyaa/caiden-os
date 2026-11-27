@@ -93,7 +93,7 @@ void OrbitScreen::update(uint32_t now, DirtySet& d) {
     }
     const uint8_t mine = uint8_t((miningShown() ? 1 : 0) | (miningActive() ? 2 : 0));
     if (mine != mineShown_) { mineShown_ = mine; d.add(Rect(8, 206, 52, 20)); }
-    if ((playing_ || (mine & 2)) && now - lastEq_ >= 83) {   // equaliser and pickaxe ~12 fps
+    if ((playing_ || (mine & 2)) && now - lastEq_ >= (playing_ ? 83u : 250u)) {   // equaliser ~12 fps; pickaxe alone 4 fps
         lastEq_ = now;
         eqPhase_ = (now % 2400) / 2400.f;
         d.add(Rect(8, 206, 52, 20));
@@ -277,6 +277,6 @@ void OrbitScreen::render(Canvas& c, const Theme& t) {
     if (br.online && br.notify) badge(c, 226, 16, br.notify, t.accent2, t.bg, true);
     const bool eq = br.online && br.sp.on && br.sp.playing;
     if (eq) eqBars(c, 13, 218, 12, t.highlight, eqPhase_);
-    if (miningShown()) mineBadge(c, t, eq ? 36 : 13, 218, miningActive(), (millis() % 700) / 700.f);
+    if (miningShown()) mineBadge(c, t, eq ? 36 : 13, 218, miningActive(), (millis() % 1000) / 1000.f);
     if (!cfg.h24 && timeOk) label(c, 227, 224, tm.tm_hour < 12 ? "AM" : "PM", t.text3, Align::Right);
 }

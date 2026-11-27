@@ -2,12 +2,13 @@
 #include <string.h>
 #include "../configuration/ConfigurationManager.h"
 #include "../state/AppState.h"
+#include "../ui/UIManager.h"
 
 MinerService g_miner;
 
-// Hashing per main-loop pass. Animations redraw at most every 83 ms and the web server is served between
-// slices, so 6 ms keeps the clock responsive while giving mining most of the idle time.
-static const uint32_t SLICE_US = 6000;
+// Hashing per main-loop pass: 6 ms while something on screen animates (redraws come at most every 83 ms),
+// 15 ms when the page is still. The web server and serial are served between slices either way.
+static const uint32_t SLICE_US = 6000, SLICE_STILL_US = 15000;
 static const uint16_t MIN_HEAP = 8000;           // pause below this
 static const uint16_t DROP_HEAP = 7000;          // disconnect from the pool below this
 static const int8_t   MIN_RSSI = -85;
@@ -22,32 +23,70 @@ static uint8_t hexVal(char c) { return c <= '9' ? c - '0' : (c | 0x20) - 'a' + 1
 static const uint32_t H0 = 0x67452301, H1 = 0xEFCDAB89, H2 = 0x98BADCFE, H3 = 0x10325476, H4 = 0xC3D2E1F0;
 static inline uint32_t rol(uint32_t x, int n) { return (x << n) | (x >> (32 - n)); }
 
-static void sha1Mid(const uint32_t pre[10], uint32_t st[5]) {
+static void sha1Mid(const uint32_t pre[10], uint32_t st[7]) {
     uint32_t a = H0, b = H1, c = H2, d = H3, e = H4;
     for (int t = 0; t < 10; t++) {
         const uint32_t tmp = rol(a, 5) + ((b & c) | (~b & d)) + e + 0x5A827999 + pre[t];
         e = d; d = c; c = rol(b, 30); b = a; a = tmp;
     }
     st[0] = a; st[1] = b; st[2] = c; st[3] = d; st[4] = e;
+    st[5] = rol(pre[8] ^ pre[2] ^ pre[0], 1);   // schedule word 16 (word 13 = 0)
+    st[6] = rol(pre[9] ^ pre[3] ^ pre[1], 1);   // schedule word 17 (word 14 = 0)
 }
 
-// true when SHA-1(prefix + nonce) == want; w[10..15] hold the nonce words and the padding
-static bool IRAM_ATTR __attribute__((noinline)) sha1Match(const uint32_t pre[10], const uint32_t mid[5], const uint32_t tail[6], const uint32_t want[5]) {
+// true when SHA-1(prefix + nonce) == want; tail = message words 10..15 (nonce digits, padding, length).
+// Rounds 10-19 unrolled, 20-79 as loops of 5 unrolled rounds (rotating variable names, no per-round
+// moves); fully unrolled it doesn't fit the 32 KB IRAM.
+// mid[5], mid[6] are schedule words 16 and 17, which don't depend on the nonce while it is at most
+// 11 digits (word 13 is then zero); otherwise they are computed here.
+#define F0(b, c, d) ((((c) ^ (d)) & (b)) ^ (d))
+#define F1(b, c, d) ((b) ^ (c) ^ (d))
+#define F2(b, c, d) ((((b) | (c)) & (d)) | ((b) & (c)))
+#define BLK(t) (w[(t) & 15] = rol(w[((t) + 13) & 15] ^ w[((t) + 8) & 15] ^ w[((t) + 2) & 15] ^ w[(t) & 15], 1))
+static bool IRAM_ATTR __attribute__((noinline)) sha1Match(const uint32_t pre[10], const uint32_t mid[7], const uint32_t tail[6], const uint32_t want[5]) {
     uint32_t w[16];
     for (int i = 0; i < 10; i++) w[i] = pre[i];
     for (int i = 0; i < 6; i++) w[10 + i] = tail[i];
     uint32_t a = mid[0], b = mid[1], c = mid[2], d = mid[3], e = mid[4];
-#define SHA1_W(t) (w[(t) & 15] = rol(w[((t) + 13) & 15] ^ w[((t) + 8) & 15] ^ w[((t) + 2) & 15] ^ w[(t) & 15], 1))
-#define SHA1_R(f, k, x) do { const uint32_t tmp = rol(a, 5) + (f) + e + (k) + (x); e = d; d = c; c = rol(b, 30); b = a; a = tmp; } while (0)
-    for (int t = 10; t < 16; t++) SHA1_R((b & c) | (~b & d), 0x5A827999, w[t]);
-    for (int t = 16; t < 20; t++) SHA1_R((b & c) | (~b & d), 0x5A827999, SHA1_W(t));
-    for (int t = 20; t < 40; t++) SHA1_R(b ^ c ^ d, 0x6ED9EBA1, SHA1_W(t));
-    for (int t = 40; t < 60; t++) SHA1_R((b & c) | (b & d) | (c & d), 0x8F1BBCDC, SHA1_W(t));
-    for (int t = 60; t < 80; t++) SHA1_R(b ^ c ^ d, 0xCA62C1D6, SHA1_W(t));
-#undef SHA1_R
-#undef SHA1_W
+    const uint32_t w16 = tail[3] ? rol(tail[3] ^ w[8] ^ w[2] ^ w[0], 1) : mid[5];
+    const uint32_t w17 = mid[6];   // word 14 is always 0 (the length fits in word 15)
+    e += rol(a, 5) + F0(b, c, d) + 0x5A827999 + w[10]; b = rol(b, 30);
+    d += rol(e, 5) + F0(a, b, c) + 0x5A827999 + w[11]; a = rol(a, 30);
+    c += rol(d, 5) + F0(e, a, b) + 0x5A827999 + w[12]; e = rol(e, 30);
+    b += rol(c, 5) + F0(d, e, a) + 0x5A827999 + w[13]; d = rol(d, 30);
+    a += rol(b, 5) + F0(c, d, e) + 0x5A827999 + w[14]; c = rol(c, 30);
+    e += rol(a, 5) + F0(b, c, d) + 0x5A827999 + w[15]; b = rol(b, 30);
+    d += rol(e, 5) + F0(a, b, c) + 0x5A827999 + (w[0] = w16); a = rol(a, 30);
+    c += rol(d, 5) + F0(e, a, b) + 0x5A827999 + (w[1] = w17); e = rol(e, 30);
+    b += rol(c, 5) + F0(d, e, a) + 0x5A827999 + BLK(18); d = rol(d, 30);
+    a += rol(b, 5) + F0(c, d, e) + 0x5A827999 + BLK(19); c = rol(c, 30);
+    for (int t = 20; t < 40; t += 5) {   // 5 rounds per pass: the names come back round
+        e += rol(a, 5) + F1(b, c, d) + 0x6ED9EBA1 + BLK(t + 0); b = rol(b, 30);
+        d += rol(e, 5) + F1(a, b, c) + 0x6ED9EBA1 + BLK(t + 1); a = rol(a, 30);
+        c += rol(d, 5) + F1(e, a, b) + 0x6ED9EBA1 + BLK(t + 2); e = rol(e, 30);
+        b += rol(c, 5) + F1(d, e, a) + 0x6ED9EBA1 + BLK(t + 3); d = rol(d, 30);
+        a += rol(b, 5) + F1(c, d, e) + 0x6ED9EBA1 + BLK(t + 4); c = rol(c, 30);
+    }
+    for (int t = 40; t < 60; t += 5) {   // 5 rounds per pass: the names come back round
+        e += rol(a, 5) + F2(b, c, d) + 0x8F1BBCDC + BLK(t + 0); b = rol(b, 30);
+        d += rol(e, 5) + F2(a, b, c) + 0x8F1BBCDC + BLK(t + 1); a = rol(a, 30);
+        c += rol(d, 5) + F2(e, a, b) + 0x8F1BBCDC + BLK(t + 2); e = rol(e, 30);
+        b += rol(c, 5) + F2(d, e, a) + 0x8F1BBCDC + BLK(t + 3); d = rol(d, 30);
+        a += rol(b, 5) + F2(c, d, e) + 0x8F1BBCDC + BLK(t + 4); c = rol(c, 30);
+    }
+    for (int t = 60; t < 80; t += 5) {   // 5 rounds per pass: the names come back round
+        e += rol(a, 5) + F1(b, c, d) + 0xCA62C1D6 + BLK(t + 0); b = rol(b, 30);
+        d += rol(e, 5) + F1(a, b, c) + 0xCA62C1D6 + BLK(t + 1); a = rol(a, 30);
+        c += rol(d, 5) + F1(e, a, b) + 0xCA62C1D6 + BLK(t + 2); e = rol(e, 30);
+        b += rol(c, 5) + F1(d, e, a) + 0xCA62C1D6 + BLK(t + 3); d = rol(d, 30);
+        a += rol(b, 5) + F1(c, d, e) + 0xCA62C1D6 + BLK(t + 4); c = rol(c, 30);
+    }
     return a + H0 == want[0] && b + H1 == want[1] && c + H2 == want[2] && d + H3 == want[3] && e + H4 == want[4];
 }
+#undef F0
+#undef F1
+#undef F2
+#undef BLK
 
 // the message tail for the current digits: digits, 0x80, zeros, length in bits (big-endian words 10..15)
 static void sha1Tail(const char* dg, uint8_t n, uint32_t tail[6]) {
@@ -128,12 +167,41 @@ bool MinerService::parseJob() {   // "<40 hex last hash>,<40 hex expected>,<diff
     return true;
 }
 
+float MinerService::bench(uint32_t ms) {
+    // a fixed job whose answer is never in range, so every hash runs the full kernel
+    static const char LAST[] PROGMEM = "6b1d1e6c5d2b9c7e0a3f4d8e2c1b0a9f8e7d6c5b";
+    char last[41];
+    strncpy_P(last, LAST, sizeof last);
+    uint32_t pre[10], mid[7], want[5] = {0, 0, 0, 0, 0}, tail[6];
+    for (int i = 0; i < 10; i++)
+        pre[i] = uint32_t(uint8_t(last[4 * i])) << 24 | uint32_t(uint8_t(last[4 * i + 1])) << 16 |
+                 uint32_t(uint8_t(last[4 * i + 2])) << 8 | uint8_t(last[4 * i + 3]);
+    sha1Mid(pre, mid);
+    char dg[10] = "100000";
+    uint8_t nd = 6;
+    uint32_t n = 0;
+    const uint32_t t0 = micros();
+    while (micros() - t0 < ms * 1000) {
+        sha1Tail(dg, nd, tail);
+        for (int k = 0; k < 64; k++) {
+            if (sha1Match(pre, mid, tail, want)) return -1;     // can't happen: want is all zeros
+            n++;
+            int i = nd - 1;
+            while (i >= 0 && dg[i] == '9') dg[i--] = '0';
+            if (i >= 0) dg[i]++;
+            sha1Tail(dg, nd, tail);
+        }
+        yield();
+    }
+    return n * 1e6f / float(micros() - t0);
+}
+
 void MinerService::setDigits() {
     ndig_ = uint8_t(snprintf_P(digits_, sizeof digits_, PSTR("%lu"), (unsigned long)nonce_));
 }
 
 void MinerService::hashSlice(uint32_t now) {
-    (void)now;
+    const uint32_t slice = g_ui.animating(now) ? SLICE_US : SLICE_STILL_US;
     const uint32_t t0 = micros();
     uint32_t tail[6];
     sha1Tail(digits_, ndig_, tail);
@@ -159,7 +227,7 @@ void MinerService::hashSlice(uint32_t now) {
             requestJob();
             return;
         }
-    } while (micros() - t0 < SLICE_US);
+    } while (micros() - t0 < slice);
     jobUs_ += micros() - t0;
 }
 

@@ -20,6 +20,9 @@ class MinerService {
 public:
     void loop(bool online);
     void settingsChanged();               // account or on/off changed: reconnect
+    // Raw kernel speed: hashes a fixed test job for about `ms` milliseconds (blocking), returns H/s.
+    // USB only ({"cmd":"minebench"}), for measuring kernel changes.
+    float bench(uint32_t ms);
 private:
     enum class St : uint8_t { Idle, Banner, JobWait, Hashing, ResultWait, Backoff };
     void setStatus(uint8_t s, const char* why = "");
@@ -38,7 +41,7 @@ private:
     uint32_t waitSince_ = 0, backoffUntil_ = 0;
     // job
     uint32_t pre_[10];          // the 40-character last hash as SHA-1 message words (big-endian)
-    uint32_t mid_[5];           // SHA-1 state after rounds 0-9, which only depend on pre_
+    uint32_t mid_[7];           // SHA-1 state after rounds 0-9 + schedule words 16, 17 (only depend on pre_)
     uint32_t want_[5];          // the expected hash as words
     char digits_[10];           // nonce_ as ASCII, counted up in place (no formatting per hash)
     uint8_t ndig_ = 1;

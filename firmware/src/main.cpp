@@ -352,6 +352,8 @@ static void serialCommands() {
             Serial.printf_P(PSTR("[status] mode %u ip %s ssid %s heap %u screen %s scroll %u\n"), unsigned(g_state.net.mode),
                           g_state.net.ip, g_state.net.ssid, ESP.getFreeHeap(),
                           g_ui.current() ? g_ui.current()->name() : "-", lcd.scroll());
+        } else if (!strcmp(cmd, "minebench")) {        // raw mining kernel speed, 3 s
+            Serial.printf_P(PSTR("[minebench] %.0f H/s while hashing\n"), g_miner.bench(3000));
         } else if (!strcmp(cmd, "bench")) {
             uint32_t us = g_ui.benchFullFrame(3);
             uint32_t other = us - g_ui.benchPaint - g_ui.benchSwap - g_ui.benchSpi;

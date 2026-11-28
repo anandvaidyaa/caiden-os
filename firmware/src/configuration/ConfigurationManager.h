@@ -18,7 +18,7 @@ struct Config {
     uint8_t  brightness = 70;                 // 0..100
     uint8_t  glowPct = 100;                   // ambient glow strength, % of design value
     uint8_t  nightFrom = 0, nightTo = 0;      // night screensaver hours; from == to = OFF (default)
-    uint16_t pageMask = 0x3FFF;               // dashboards in the rotation (bit = page index; home always on)
+    uint16_t pageMask = 0xBFFF;               // dashboards in the rotation (bit = page index; home always on)
     char     bridge[48] = "";                 // unused since 0.7.0 (the PC bridge was replaced by the relay)
     char     relay[72] = "";                  // cloud relay host (relay/worker.js): news, markets, Spotify...
     // Feed settings, sent to the relay with each request (relay/worker.js parseSettings):

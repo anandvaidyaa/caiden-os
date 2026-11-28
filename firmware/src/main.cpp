@@ -37,6 +37,7 @@ static EngineTestScreen engineScreen;
 static WeatherScreen weatherScreen;
 static AirScreen airScreen;
 static SpotifyScreen spotifyScreen;
+static LyricsScreen lyricsScreen;
 static MarketsScreen marketsScreen;
 static NewsScreen newsScreen;
 static CalendarScreen calendarScreen;
@@ -53,7 +54,7 @@ static UpdateScreen updateScreen;
 // Rotating dashboard pages (bridge-backed pages arrive with M5). Idle is not part of the rotation.
 static Screen* const PAGES[] = {&homeScreen, &spotifyScreen, &focusScreen, &cricketScreen, &weatherScreen, &airScreen,
                                 &calendarScreen, &worldScreen, &marketsScreen, &newsScreen,
-                                &sunScreen, &quoteScreen, nullptr, &lanScreen, &miningScreen};   // bits 10-13 (portal PG order); bit 12 was
+                                &sunScreen, &quoteScreen, nullptr, &lanScreen, &miningScreen, &lyricsScreen};   // bits 10-13 (portal PG order); bit 12 was
                                 // Connection (removed in 0.8.5): the slot stays so saved page bits keep their meaning
 // (the System page is diagnostics: open it with /api/page?name=system or the web page)
 static const uint8_t PAGE_COUNT = sizeof(PAGES) / sizeof(PAGES[0]);
@@ -77,6 +78,7 @@ static Screen* pageByName(const char* n) {
     if (!strcmp(n, "weather")) return &weatherScreen;
     if (!strcmp(n, "air")) return &airScreen;
     if (!strcmp(n, "spotify")) return &spotifyScreen;
+    if (!strcmp(n, "lyrics")) return &lyricsScreen;
     if (!strcmp(n, "markets")) return &marketsScreen;
     if (!strcmp(n, "news")) return &newsScreen;
     if (!strcmp(n, "calendar")) return &calendarScreen;
@@ -121,13 +123,26 @@ static bool isNight() {
 // Relay-fed pages join the rotation only while they have something to show. When the relay can't be
 // reached they keep the last data they received (the header shows its age). Cricket is live-only.
 // Home network (lan) needed the PC bridge and is gone; its slot stays so page bits don't move.
+bool lyricsShown() { return g_ui.target() == &lyricsScreen; }
+
+// The relay sends lyrics with Spotify only while the Lyrics page is on in the rotation or open by hand.
+bool lyricsWanted() {
+    for (uint8_t i = 0; i < PAGE_COUNT; i++)
+        if (PAGES[i] == &lyricsScreen) return (g_config.get().pageMask & (1u << i)) || manualPage == &lyricsScreen;
+    return false;
+}
+
 static bool pageAvailable(uint8_t i) {
     const BridgeData& b = g_state.bridge;
     Screen* s = PAGES[i];
     if (!s) return false;                // removed page
     if (i > 0 && !(g_config.get().pageMask & (1u << i))) return false;   // turned off in the portal
-    // Spotify, Focus and Calendar always rotate (they show a "nothing now" screen when empty).
+    // Focus and Calendar always rotate (they show a "nothing now" screen when empty).
+    // Spotify only while music is playing (paused or stopped: skipped, and the page leaves at once).
     // Cricket only while a match of the followed team (bridge cricket_team, default India) is live.
+    if (s == &spotifyScreen) return b.online && b.sp.on && b.sp.playing;
+    // Lyrics: only while playing a song with synced lyrics
+    if (s == &lyricsScreen) return b.online && b.sp.on && b.sp.playing && b.ly.kind == 1;
     if (s == &cricketScreen) return b.online && b.cr.live;
     if (s == &marketsScreen) return b.markets > 0;
     if (s == &newsScreen) return b.news > 0;

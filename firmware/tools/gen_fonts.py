@@ -57,6 +57,8 @@ FONTS = [
     ("l_micro",    (V2, "Inter-Variable.ttf"), 10, 700, UPPER + "abcdefghijklmnopqrstuvwxyz"),
     # ---- CAIDEN OS 3 "Atelier" (design2/render_v3.py): editorial headline / quote face
     ("l_head",     (V2, "Outfit-Variable.ttf"), 23, 400, ASCII + EXTRA),
+    # ---- Kinetic Lyrics hero (scratch kinetic.py): content words of the sung line
+    ("l_hero",     (V2, "Outfit-Variable.ttf"), 28, 700, ASCII),
 ]
 
 def load(src, px, weight):

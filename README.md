@@ -21,6 +21,7 @@ and updated over the air from anywhere.
 - [What you need](#what-you-need)
 - [Install](#install)
 - [Settings page](#settings-page)
+- [Lyrics](#lyrics)
 - [Mining (hobby)](#mining-hobby)
 - [Updates](#updates)
 - [Security and privacy](#security-and-privacy)
@@ -30,7 +31,41 @@ and updated over the air from anywhere.
 
 ## What's new
 
-The latest firmware is **0.9.8**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
+The latest firmware is **1.1.0**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
+Lyrics also need the updated relay (`relay/worker.js`): redeploy it with `npx wrangler deploy` in `relay/`.
+
+### Lyrics page: "Kinetic Poster" (new in 1.1.0)
+
+<p align="center"><img src="docs/images/lyrics.gif" width="320" alt="Lyrics page animation"></p>
+
+The song playing on Spotify, sung line by line on the clock and set like a small animated music poster:
+- **The sung line is the centrepiece.** It is left-aligned in rows that read as phrases ("Neon rain / is falling /
+  on the street"). Content words are set in a heavy hero face and small words ("is", "on the") in a lighter one
+  on the same baseline. Lines of one to three words get one word per row with a stepped indent.
+- **Word by word, but only when it's real.** Many songs on [LRCLIB](https://lrclib.net) have a start time for
+  every word. For those, the word being sung turns album-coloured with a short underline and a small pop. Sung
+  words turn white and coming words wait dimmer. Songs with line timing only show the whole line without
+  singling out any word: the clock never guesses word timing.
+- **Motion:** when a line changes, the old one lifts away and the new words land one after another, all
+  within 300 ms. The line before sits faded above and the next line peeks in at the bottom. A slim rule on the
+  left fills as the line is sung.
+- **Gaps and intros:** a point of light travels along a hairline for the length of the gap, with
+  "BACK IN 3".
+- **Album colours:** the two main colours of the album art tint the background, the rule and the sung word.
+  Dull or dark colours are brightened automatically so text stays readable.
+- **No lyrics, or an instrumental:** the song title becomes the poster, with rhythm bars underneath. No words are
+  invented.
+- **Paused:** the line stays, dimmed, under a PAUSED mark.
+
+![Lyrics page states](docs/images/lyrics.png)
+
+See [Lyrics](#lyrics) for how it works, its limits and how the design was chosen.
+
+### Spotify page only while music plays (0.9.9)
+
+The Spotify page joins the rotation only while something is playing. The "Nothing playing" screen no longer
+comes up between other pages.
+
 
 ### Mining page: the crystal mine
 
@@ -120,6 +155,9 @@ title, which gets shortened with "…" if it doesn't fit. Nothing overlaps.
 
 | Version | Change |
 |---|---|
+| 1.1.0 | Lyrics redesigned as the "Kinetic Poster": real word-by-word timing where the provider has it, poster typography, new Outfit 28 hero font; relay sends word timings |
+| 1.0.0 | First Lyrics page: synced lyrics from LRCLIB through the relay, romanised fallback for non-Latin scripts |
+| 0.9.9 | Spotify page shows only while music is playing |
 | 0.9.8 | Mining page redraws far less (17 ms per frame instead of 100-160 ms): mining keeps ~40 kH/s while it's shown |
 | 0.9.7 | Mining page: nothing overflows (share counts, ring percentage, speech bubble, cave ceiling) |
 | 0.9.6 | Mining page redesigned: the animated crystal mine |
@@ -166,6 +204,9 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
 - **World clock:** London, New York, Tokyo and Dubai.
 - **Spotify:** track, artist, album art and progress. Shows only while something is playing; an animated
   equaliser appears in every page's header while music plays.
+- **Lyrics:** the playing song's lyrics, in time with the music, as an animated typographic poster; word by word
+  where the timing exists. From [LRCLIB](https://lrclib.net) through your relay; no account or key. See
+  [Lyrics](#lyrics).
 - **News:** up to 3 tabs, each a topic (world, India, business, technology, science, sport, health,
   entertainment) or your own search (for example your city).
 - **Markets:** up to 4 Yahoo Finance symbols (NIFTY, SENSEX, stocks, ...) plus Bitcoin.
@@ -191,7 +232,7 @@ the firmware; the clock looks very close to them. Sample data is shown.</sub>
                         plain HTTP                           HTTPS
    ┌─────────────┐  ───────────────────►  ┌──────────────────────────┐  ──────►  BBC, Bing News, Yahoo Finance,
    │ CAIDEN OS   │                         │ Your cloud relay         │           CoinGecko, ZenQuotes, Spotify,
-   │ (the clock) │  ◄───────────────────   │ Cloudflare Worker (free) │  ◄──────  Cricinfo, firmware updates
+   │ (the clock) │  ◄───────────────────   │ Cloudflare Worker (free) │  ◄──────  LRCLIB, Cricinfo, updates
    └─────────────┘                         └──────────────────────────┘
       │      ▲
       │      │  http://caiden.local (password)       Open-Meteo: weather & air quality (plain HTTP, direct)
@@ -284,10 +325,83 @@ On the settings page you can:
 |---|---|
 | **Home** | Shows any page on the clock right now; live clock and status |
 | **Display** | Theme, brightness, ambient glow, 12/24-hour clock |
-| **Pages** | Rotation interval, how long a picked page stays, which pages rotate, night screensaver |
+| **Pages** | Rotation interval, how long a picked page stays, which pages rotate (including **Lyrics**), night screensaver |
 | **Feeds** | Cloud relay address, news tabs, markets, Bitcoin, news age, cricket team, **Mining** card (account, on/off, live stats, 24-hour chart) |
 | **Focus** | Pomodoro (4 × 25 min), countdown timer, stopwatch, minutes focused today |
 | **System** | Device info, firmware update, **Password** card (show on clock, new password, log out), city and time zone, Wi-Fi, restart |
+
+## Lyrics
+
+The Lyrics page shows the song playing on your Spotify account, in time with the music. It's on by default.
+Turn it off under **Pages** on the settings page.
+
+### When it shows
+
+- **In the rotation:** only while a song with synced lyrics is playing.
+- **Opened by hand** (Home tab, or `/api/page?name=lyrics`): it also explains the other cases. These are
+  "Instrumental", "No synced lyrics" and "Lyrics in another script".
+
+### How it works
+
+1. **Look-up:** when a new song starts, your relay looks it up once on [LRCLIB](https://lrclib.net), a free,
+   open lyrics database. The look-up uses the title, artist, album and length. The result is kept in your
+   relay's storage for 30 days (a miss for a day), so each song is fetched only once.
+2. **Choosing a version:** the relay prefers a version with **word timing** (LRCLIB's `lyricsfile`). Otherwise it
+   uses line timing (LRC).
+3. **Non-Latin scripts:** if the best version is in a script the clock's A–Z fonts can't show, for example
+   Devanagari, the relay looks for a romanised upload of the same song (same length within 4 s). Many Hindi songs
+   have one.
+4. **Sending lines:** with every Spotify check, the relay sends a small window of lines. It covers the line
+   before, the current line and the lines up to 8 s ahead, 6 lines at most, under 1 KB. The clock never holds
+   the whole song.
+5. **Check rate:** while the Lyrics page is on screen, the clock checks Spotify every 2 s instead of 5 s.
+6. **Keeping time:** between checks the clock keeps time itself from the song position Spotify reported.
+7. **Word timing:** each word's start is matched to the words of the line exactly. Where they don't match, that
+   line is shown with line timing only.
+
+### Word mode and line mode
+
+| | Word mode (the provider has word timing) | Line mode (line timing only) |
+|---|---|---|
+| Current word | Album-coloured, underlined, a 2 px pop as it starts | Not singled out |
+| Sung words | White | White (the whole line) |
+| Coming words | Dimmer | White |
+| Line progress | The slim rule on the left fills | The slim rule on the left fills |
+
+### Design
+
+Four concepts were drawn in the design simulator at the clock's real 240×240 size and compared:
+- **A, Kinetic Poster;**
+- **B, Floating:** a circular progress ring and drifting lines;
+- **C, Editorial:** a magazine grid with a big line number;
+- **D, Minimal Cinema:** letterbox bars and light leaks.
+
+Each concept was checked for:
+- readability with bright, cool and dull album colours;
+- long, short and paused lines;
+- what the clock can actually draw;
+- render cost.
+
+A, the Kinetic Poster, was chosen and refined. It cost the least to animate, and it was the most expressive.
+
+![The four lyrics concepts](docs/images/lyrics_concepts.png)
+
+<sub>All lyrics in these images are made up.</sub>
+
+### Performance
+
+- **Redraw while a word is sung:** only the words that changed are redrawn.
+- **Line change:** the lyrics block redraws for about a third of a second.
+- **Hero font:** Outfit 28 (bold), stored in flash (14.6 KB). It costs no memory.
+- **Memory:** about 0.8 KB, for the line window, the word timings and two cached layouts.
+
+### Limits
+
+- **Fonts are A–Z only.** Songs available only in other scripts show "Lyrics in another script".
+- **Coverage depends on LRCLIB.** Unknown songs show the title poster. Podcasts never show lyrics.
+- **Very fast rap** can sit on the last line the clock has for about half a second at times, until the next check.
+- **Network drops:** if the Wi-Fi drops, the page keeps the last lines it received until the relay answers again.
+- **Timing source:** the timing is what the uploader recorded on LRCLIB. A song can be slightly early or late.
 
 ## Mining (hobby)
 
@@ -364,6 +478,7 @@ Check what the clock runs, from anywhere: `http://<your relay>/clock.json`.
 | Clock shows the setup screen | It can't reach the saved Wi-Fi (wrong password, 5 GHz-only network, out of range). Set it up again (Install step 3). |
 | News, markets or quote missing | Check the relay address under **Feeds**, then open `http://<relay>/state.json` in a browser. |
 | Spotify stays empty | Repeat the Spotify sign-in link from the relay guide; check the Redirect URI matches your relay exactly. |
+| Lyrics page never appears | It rotates only while a song with synced lyrics plays. Check **Pages** has Lyrics on, the relay is redeployed (1.0.0+ relay), and open `http://<relay>/sp.json?ly=1` while playing: `lk` 1 means lyrics were found. |
 | Update fails | Check `http://<relay>/clock.json` for `ue` (the last update error). A weak Wi-Fi signal (`ss` below -80) slows or breaks downloads. |
 | Anything else | Read the clock's log over USB: `python -I tools/serial_cmd.py '{"cmd":"status"}'` from `firmware/`. |
 | Want the stock firmware back | [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md#restore) |
@@ -384,6 +499,7 @@ docs/                  hardware, backup/restore and update guides; images for th
 
 Weather and air quality: [Open-Meteo](https://open-meteo.com/). News: BBC and The Hindu RSS feeds and Bing News search. Markets: Yahoo Finance and
 CoinGecko. Quotes: ZenQuotes. Cricket: ESPNcricinfo's live-score feed or [CricketData.org](https://cricketdata.org/).
-Album art resizing: [wsrv.nl](https://wsrv.nl/). Fonts: Inter, Outfit, Ubuntu and Source Code Pro.
+Album art resizing: [wsrv.nl](https://wsrv.nl/). Lyrics: [LRCLIB](https://lrclib.net), a free and open
+lyrics database built by its community. Fonts: Inter, Outfit, Ubuntu and Source Code Pro.
 
 Code: [MIT licence](LICENSE). The fonts keep their own licences (SIL OFL 1.1 and the Ubuntu Font Licence).

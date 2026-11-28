@@ -41,6 +41,7 @@ bool ConfigurationManager::load() {
     cfg_.glowPct = doc["glow"] | cfg_.glowPct;
     cfg_.pageMask = uint16_t((doc["pages"] | int(cfg_.pageMask)) | 1);
     if ((doc["pagesV"] | 1) < 2) cfg_.pageMask |= 0x3C00;   // v2 added Sun, Quote, Internet, Network: on
+    if ((doc["pagesV"] | 1) < 3) cfg_.pageMask |= 0x8000;   // v3 added Lyrics: on
     if ((doc["nightV"] | 0) >= 2) {               // v2: the user's own choice
         cfg_.nightFrom = doc["nightFrom"] | cfg_.nightFrom;
         cfg_.nightTo = doc["nightTo"] | cfg_.nightTo;
@@ -82,7 +83,7 @@ bool ConfigurationManager::save() {
     doc["bright"] = cfg_.brightness;
     doc["glow"] = cfg_.glowPct;
     doc["pages"] = cfg_.pageMask;
-    doc["pagesV"] = 2;
+    doc["pagesV"] = 3;
     doc["nightFrom"] = cfg_.nightFrom;
     doc["nightTo"] = cfg_.nightTo;
     doc["nightV"] = 2;

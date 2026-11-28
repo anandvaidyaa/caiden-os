@@ -190,7 +190,10 @@ void BridgeService::applyState(JsonDocument& doc) {
 }
 
 // ---------------------------------------------------------------- Spotify
-static const uint16_t SP_BODY_MAX = 512;   // a playing track is ~300 B of JSON
+bool lyricsWanted();                       // main.cpp: the Lyrics page is on (or open)
+bool lyricsShown();                        // main.cpp: the Lyrics page is on screen
+static const uint32_t SP_LYRICS_MS = 2000; // Spotify while the Lyrics page is on screen
+static const uint16_t SP_BODY_MAX = 1280;  // a playing track is ~300 B of JSON, ~800 B with lyrics
 static const uint32_t SP_TIMEOUT_MS = 5000;
 
 void BridgeService::spClose() {
@@ -212,7 +215,8 @@ bool BridgeService::spStart() {
     String host = g_config.get().relay;
     const int colon = host.indexOf(':');
     if (colon > 0) host = host.substring(0, colon);
-    spCli_.printf_P(PSTR("GET /sp.json HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n"), host.c_str());
+    spCli_.printf_P(PSTR("GET /sp.json%s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\n\r\n"),
+                    lyricsWanted() ? "?ly=1" : "", host.c_str());
     spSt_ = 1; spSince_ = millis();
     spLineN_ = 0; spLen_ = -1; spCode_ = 0; spKeep_ = true; spGot_ = 0;
     return true;
@@ -275,7 +279,26 @@ void BridgeService::applySpotify(JsonDocument& doc) {
     sp.atMs = millis();
     copy(sp.artId, sizeof sp.artId, id);
     if (on && !sp.c1 && !sp.c2) { sp.c1 = hex565("#8A6BFF"); sp.c2 = hex565("#3FE0FF"); }   // until art colours arrive
-    if (trackChanged) b.spVersion++;
+    LyricsData& L = b.ly;
+    const uint8_t oldKind = L.kind;
+    L.kind = doc["lk"] | 0;
+    L.first = doc["l0"] | 0;
+    L.total = doc["ln"] | 0;
+    L.n = 0;
+    for (JsonArrayConst row : doc["ly"].as<JsonArrayConst>()) {
+        if (L.n >= 6) break;
+        const uint8_t k = L.n;
+        L.t[k] = row[0] | 0;
+        copy(L.s[k], sizeof L.s[0], row[1] | "");
+        L.e[k] = row[2] | 0;
+        L.nw[k] = 0;
+        for (JsonVariantConst w : row[3].as<JsonArrayConst>()) {
+            if (L.nw[k] >= 16) { L.nw[k] = 0; break; }      // longer lines: line timing only
+            L.w[k][L.nw[k]++] = uint16_t(w.as<uint32_t>() > 65535 ? 65535 : w.as<uint32_t>());
+        }
+        L.n++;
+    }
+    if (trackChanged || L.kind != oldKind) b.spVersion++;
 }
 
 // Album art: 120x120 RGB565 from the relay, streamed to flash; the dominant colours come as headers.
@@ -583,7 +606,7 @@ void BridgeService::loop(bool online) {
     }
     if (spSt_) {                                     // Spotify reply arriving: collect what's there, never wait
         const int8_t r = spPoll(now);
-        if (r > 0) { okNow(); spNext_ = millis() + (!b.spSetup ? SP_OFF_MS : b.sp.on ? SP_ACTIVE_MS : SP_IDLE_MS); }
+        if (r > 0) { okNow(); spNext_ = millis() + (!b.spSetup ? SP_OFF_MS : b.sp.on ? (lyricsShown() ? SP_LYRICS_MS : SP_ACTIVE_MS) : SP_IDLE_MS); }
         else if (r < 0) spNext_ = retry();
     } else if (int32_t(now - spNext_) >= 0) {
         if (!spStart()) spNext_ = retry();

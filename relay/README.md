@@ -72,6 +72,22 @@ From this `relay/` folder:
 
 Sign-in uses PKCE, so no Spotify client secret is needed. The sign-in is kept in KV; deploys don't remove it.
 
+### Lyrics (clock 1.0.0+, no setup)
+
+With Spotify set up, lyrics work by themselves. When the clock asks `/sp.json?ly=1` (only while its Lyrics
+page is on), the relay:
+- looks the song up once on [LRCLIB](https://lrclib.net), a free and open lyrics database (no key);
+- keeps the result in KV for 30 days (`ly2:<track id>`);
+- sends a small window of lines: the line before, the current line and the lines up to 8 s ahead.
+
+Fields:
+
+| Field | Meaning |
+|---|---|
+| `lk` | 0 none, 1 synced, 2 instrumental, 3 lyrics without timing, 4 only in a script the clock can't show |
+| `ly` | lines `[start ms, text, end ms]`, plus each word's start (ms after the line start) when the song has word timing |
+| `l0`, `ln` | index of the first line sent, and lines in the song |
+
 ## 3. Cricket (optional)
 
 Without a key, live scores come free from Cricinfo's live-score feed: teams, runs and wickets, but no overs
@@ -116,6 +132,8 @@ After changing `worker.js`, run `npx wrangler deploy` again. Variables, secrets 
 
 - The worker runs on **your** Cloudflare account. Keys and the Spotify sign-in are stored there, as secrets
   and in KV; they never pass through the clock.
+- Lyrics are looked up on lrclib.net by song title, artist, album and length, so LRCLIB sees which songs you
+  play (only while the Lyrics page is on).
 - Album art is resized by wsrv.nl, a free public image service, so it sees the cover image addresses of what
   you play.
 - Anyone who knows your relay's address can read the same public data, your current Spotify track and the

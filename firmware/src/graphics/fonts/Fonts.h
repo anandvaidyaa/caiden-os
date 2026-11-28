@@ -23,3 +23,4 @@ extern const Font FONT_L_BODY;   // Inter-Variable.ttf 13px w500, 108 glyphs
 extern const Font FONT_L_LABEL;   // Inter-Variable.ttf 11px w600, 47 glyphs
 extern const Font FONT_L_MICRO;   // Inter-Variable.ttf 10px w700, 73 glyphs
 extern const Font FONT_L_HEAD;   // Outfit-Variable.ttf 23px w400, 108 glyphs
+extern const Font FONT_L_HERO;   // Outfit-Variable.ttf 28px w700, 95 glyphs

@@ -204,6 +204,431 @@ void SpotifyScreen::render(Canvas& c, const Theme& t) {
     else label(c, 120, 222, "PAUSED", t.text3, Align::Center);
 }
 
+// ================================================================ LYRICS ("Kinetic Poster")
+// Designed in the simulator (scratch kinetic.py, concept A of four). The sung line is set like a small
+// music poster: left-aligned rows that read as phrases, content words in the heavy hero face and small
+// words in Outfit 18 on the same baseline, a tracked kicker with the song title, a slim rule that fills
+// with the line's progress. Words land one after another (all within 300 ms) while the old line lifts away.
+// WORD mode (the provider has word timing): the word being sung turns album-coloured with an underline;
+// sung words are white, coming ones dimmer. LINE mode: no word is singled out (timing is never guessed).
+static const int16_t KT_TX = 25, KT_TW = 240 - KT_TX - M, KT_TOP = 76, KT_BOT = 204;
+static const int16_t KT_PREV_Y = 63, KT_NEXT_Y = 222, KT_KICK_Y = 46, KT_HAIR_Y = 235;
+static const uint16_t KT_STAGGER = 22, KT_ENTER = 150, KT_EXIT = 150, KT_LEAD = 30;
+static const Rect R_KT_BLOCK(0, 31, 240, 200), R_KT_RULE(12, 40, 8, 172), R_KT_HAIR(0, 230, 240, 10),
+                  R_KT_PAUSE(KT_TX - 8, 118, 226 - KT_TX + 16, 44), R_KT_BARS(M, 168, 212, 50),
+                  R_KT_NEXT(0, 208, 240, 20);
+
+static const Font& ktFont(uint8_t f) { return f == 0 ? FONT_L_HERO : f == 1 ? FONT_L_DISPLAY : FONT_L_BODY; }
+static float ktClamp(float x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+static float ktEase(float x) { x = ktClamp(x); return x * x * (3 - 2 * x); }
+static float ktOut(float x) { x = 1 - ktClamp(x); return 1 - x * x * x; }
+
+// small words set in the lighter face (lower case, without punctuation)
+static const char KT_STOP[] PROGMEM =
+    " a an the to of in on at is are am be and or but so it i me my we you your our up let like while keep"
+    " with for from by as this that all just oh ";
+static bool ktStop(const char* w) {
+    char b[16]; uint8_t n = 0;
+    b[n++] = ' ';
+    const char* e = w + strlen(w);
+    while (*w && strchr(",.!?\"'", *w)) w++;                 // punctuation at the ends only
+    while (e > w && strchr(",.!?\"'", e[-1])) e--;
+    for (const char* p = w; p < e && n < 13; p++) {
+        const char ch = *p;
+        b[n++] = ch >= 'A' && ch <= 'Z' ? char(ch + 32) : ch;
+    }
+    if (n == 1) return false;
+    b[n++] = ' '; b[n] = 0;
+    return strstr_P(KT_STOP, b) == nullptr ? false : true;
+}
+
+// Album colour made readable on the theme: dull colours borrow half the highlight, then mix toward white
+// until bright enough (luminance >= floor, 0..1).
+static float ktLum(uint16_t c) {
+    const float r = ((c >> 11) & 31) / 31.f, g = ((c >> 5) & 63) / 63.f, b = (c & 31) / 31.f;
+    return 0.2126f * r + 0.7152f * g + 0.0722f * b;
+}
+static uint16_t ktLift(uint16_t c, float floor, uint16_t hl) {
+    const int r = ((c >> 11) & 31) * 255 / 31, g = ((c >> 5) & 63) * 255 / 63, b = (c & 31) * 255 / 31;
+    const int mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+    if (mx - mn < 70) c = mix(c, hl, 0.5f);
+    float k = 0;
+    while (ktLum(mix(c, rgb(0xFFFFFF), k)) < floor && k < 1) k += 0.05f;
+    return mix(c, rgb(0xFFFFFF), k);
+}
+
+// Poster layout of one line into p (positions relative to the block; y = baseline).
+static void ktLayout(const char* text, KtLayout& p) {
+    p.n = 0; p.h = 0;
+    strncpy(p.buf, text, sizeof p.buf - 1); p.buf[sizeof p.buf - 1] = 0;
+    uint8_t off[KT_MAX_TOK]; bool big[KT_MAX_TOK]; uint8_t n = 0;
+    uint8_t i0 = 0;
+    for (; p.buf[i0] && n < KT_MAX_TOK; ) {
+        while (p.buf[i0] == ' ') p.buf[i0++] = 0;
+        if (!p.buf[i0]) break;
+        off[n++] = i0;
+        while (p.buf[i0] && p.buf[i0] != ' ') i0++;
+    }
+    bool trunc = false;
+    if (p.buf[i0]) {                                     // more words than KT_MAX_TOK: drop the rest
+        while (p.buf[i0] == ' ') i0++;
+        trunc = p.buf[i0] != 0;
+        for (uint8_t k = i0; k < sizeof p.buf && p.buf[k]; k++) p.buf[k] = 0;
+    }
+    if (!n) return;
+    bool anyBig = false;
+    for (uint8_t i = 0; i < n; i++) { big[i] = !ktStop(p.buf + off[i]); anyBig |= big[i]; }
+    if (!anyBig) for (uint8_t i = 0; i < n; i++) big[i] = true;
+    // tiers: (big font, small font, row pitch with a big word, row pitch small-only, max rows)
+    static const uint8_t TB[3] = {0, 1, 2}, TS[3] = {1, 2, 2}, PB[3] = {31, 23, 18}, PS[3] = {24, 19, 18}, MX[3] = {3, 4, 5};
+    uint8_t row[KT_MAX_TOK];
+    for (uint8_t tier = 0; tier < 3; tier++) {
+        const Font& B = ktFont(TB[tier]); const Font& S = ktFont(TS[tier]);
+        if (tier == 0 && n <= 3) {                       // 1-3 words: one per row, stepped indent
+            bool fits = true;
+            for (uint8_t i = 0; i < n; i++) if (Canvas::textWidth(p.buf + off[i], B) > KT_TW - 44) fits = false;
+            if (fits) {
+                int16_t y = 0;
+                for (uint8_t i = 0; i < n; i++) {
+                    y += i ? 34 : 26;
+                    p.t[i] = {int16_t(i * 22), y, off[i], 0, true, false};
+                }
+                p.n = n; p.h = int16_t(y + 8);
+                return;
+            }
+        }
+        uint8_t rows = 0, cs = 0; int16_t cw = 0;
+        for (uint8_t i = 0; i < n; i++) {
+            const Font& f = big[i] ? B : S;
+            const int16_t ww = Canvas::textWidth(p.buf + off[i], f), sp = Canvas::textWidth(" ", f) + 1;
+            if (i > cs && cw + sp + ww > KT_TW) {
+                uint8_t cut = i;                             // carry trailing small words to the next row
+                while (cut - 1 > cs && !big[cut - 1]) {
+                    bool b = false;
+                    for (uint8_t k = cs; k < cut - 1; k++) b |= big[k];
+                    if (!b) break;
+                    cut--;
+                }
+                for (uint8_t k = cs; k < cut; k++) row[k] = rows;
+                rows++; cs = cut; cw = 0;
+                for (uint8_t k = cs; k < i; k++) {
+                    const Font& fk = big[k] ? B : S;
+                    cw += Canvas::textWidth(p.buf + off[k], fk) + (k > cs ? Canvas::textWidth(" ", fk) + 1 : 0);
+                }
+            }
+            if (i > cs) cw += sp;
+            cw += ww;
+            const char* w = p.buf + off[i];
+            const size_t wl = strlen(w);
+            if (wl && w[wl - 1] == ',' && i > cs) {          // a comma ends a phrase
+                for (uint8_t k = cs; k <= i; k++) row[k] = rows;
+                rows++; cs = uint8_t(i + 1); cw = 0;
+            }
+        }
+        if (cs < n) { for (uint8_t k = cs; k < n; k++) row[k] = rows; rows++; }
+        if (rows > MX[tier] && tier < 2) continue;
+        int16_t y = 0, x = 0; uint8_t r = 255, kept = 0;
+        for (uint8_t i = 0; i < n; i++) {
+            if (row[i] != r) {
+                r = row[i];
+                if (r >= 5) break;                           // still too long: stop after 5 rows
+                bool hb = false;
+                for (uint8_t k = i; k < n && row[k] == r; k++) hb |= big[k];
+                y += r ? (hb ? PB[tier] : PS[tier]) : int16_t((hb ? B : S).asc - 6);
+                x = 0;
+            }
+            const uint8_t fi = big[i] ? TB[tier] : TS[tier];
+            p.t[i] = {x, y, off[i], fi, big[i], false};
+            x += Canvas::textWidth(p.buf + off[i], ktFont(fi)) + Canvas::textWidth(" ", ktFont(fi)) + 1;
+            kept++;
+        }
+        if ((kept < n || trunc) && kept) {                 // cut short: "word..." (no ",...")
+            KtTok& last = p.t[kept - 1];
+            last.ell = true;
+            for (char* q = p.buf + last.off + strlen(p.buf + last.off); q > p.buf + last.off + 1 && (q[-1] == ',' || q[-1] == '.'); ) *--q = 0;
+        }
+        p.n = kept; p.h = int16_t(y + 8);
+        if (p.h <= KT_BOT - KT_TOP || tier == 2) return;
+    }
+}
+
+static void ktSide(Canvas& c, const char* text, float y, uint8_t a, uint16_t col) {
+    if (!text || !text[0] || !a) return;
+    char b[72];
+    Canvas::ellipsize(text, FONT_L_BODY, KT_TW, b, sizeof b);
+    c.setOpacity(a); c.text(KT_TX, int16_t(y), b, FONT_L_BODY, col); c.setOpacity(255);
+}
+
+static void ktRule(Canvas& c, const Theme& t, float y0, float h, float frac, uint16_t c1, uint16_t c2, uint8_t a) {
+    c.setOpacity(uint8_t(a * 0.55f)); c.fillRoundRect(M, y0, 2.5f, h, 1.2f, t.surfaceHi);
+    c.setOpacity(a);
+    const float fh = h * ktClamp(frac);
+    if (fh > 1) for (int k = 0; k < 4; k++)
+        c.fillRect(M, int16_t(y0 + fh * k / 4), 3, int16_t(fh / 4 + 1), mix(c1, c2, (k + 0.5f) / 4));
+    c.setOpacity(255);
+}
+
+// index in the window of the line playing at position p (-1: before the first one)
+static int ktLine(const LyricsData& L, uint32_t p) {
+    int i = -1;
+    while (i + 1 < L.n && L.t[i + 1] <= p) i++;
+    return i;
+}
+static int ktActive(const LyricsData& L, int i, uint32_t p) {    // word being sung, WORD mode only
+    if (i < 0 || !L.nw[i]) return -1;
+    int a = -1;
+    for (int j = 0; j < L.nw[i]; j++)
+        if (L.t[i] + L.w[i][j] <= p && !(j && L.w[i][j] == L.w[i][j - 1])) a = j;
+    return a;
+}
+
+void LyricsScreen::background(Canvas& c, const Theme& t) {
+    static Light Lt[3];
+    const SpotifyData& sp = g_state.bridge.sp;
+    const uint16_t c1 = sp.c1 ? sp.c1 : t.accent2, c2 = sp.c2 ? sp.c2 : t.highlight;
+    Lt[0] = {30, 150, 150, c1, uint8_t(t.dark ? 30 : 34)};
+    Lt[1] = {230, 30, 120, c2, uint8_t(t.dark ? 46 : 40)};
+    Lt[2] = {210, 235, 90, t.lights[1].color, uint8_t(t.lights[1].strength / 2)};
+    paintBackground(c, t, Lt, 3);
+}
+
+// the line shown changed: the current layout becomes the old one (it lifts away) and the new one is set
+void LyricsScreen::relayout(int i, uint32_t now, bool animate) {
+    const LyricsData& L = g_state.bridge.ly;
+    old_ = cur_;
+    ktLayout(i >= 0 ? L.s[i] : "", cur_);
+    if (!animate) old_.n = 0;
+    lineAt_ = i >= 0 ? L.t[i] : 0;
+    lineSet_ = g_state.bridge.sp.playing ? now : now - 1000;   // paused: no landing animation
+    active_ = -2;
+}
+
+void LyricsScreen::enter(uint32_t now) {
+    ver_ = g_state.bridge.spVersion;
+    lastSec_ = lastRule_ = lastAnim_ = now;
+    now_ = now; pos_ = spProgress();
+    cur_.n = 0;
+    relayout(ktLine(g_state.bridge.ly, pos_), now, false);
+}
+
+void LyricsScreen::update(uint32_t now, DirtySet& d) {
+    const SpotifyData& sp = g_state.bridge.sp;
+    const LyricsData& L = g_state.bridge.ly;
+    static int lastMin = -1;
+    if (minuteTick(lastMin)) d.add(HEADER_TIME_RECT);
+    now_ = now; pos_ = spProgress();
+    const int i = ktLine(L, pos_);
+    const uint32_t at = i >= 0 ? L.t[i] : 0;
+    if (g_state.bridge.spVersion != ver_) {                  // new song, or paused / resumed
+        ver_ = g_state.bridge.spVersion;
+        relayout(i, now, false);
+        d.addAll();
+        return;
+    }
+    if (!sp.playing) return;
+    if (now - lastSec_ >= 1000) { lastSec_ = now; d.add(R_KT_HAIR); }
+    if (L.kind != 1) {                                       // fallback poster: the rhythm bars move
+        if (now - lastAnim_ >= 120) { lastAnim_ = now; d.add(R_KT_BARS); }
+        return;
+    }
+    if (at != lineAt_) {
+        relayout(i, now, true);
+        d.add(R_KT_BLOCK);
+        lastAnim_ = now;
+        return;
+    }
+    const uint32_t since = now - lineSet_;
+    if (since < 340) {                                       // words landing, old line lifting (~12 fps)
+        if (now - lastAnim_ >= 80) { lastAnim_ = now; d.add(R_KT_BLOCK); }
+        return;
+    }
+    if (since < 800 && now - lastAnim_ >= 100) { lastAnim_ = now; d.add(R_KT_BLOCK); }   // next line fades in
+    if (now - lastRule_ >= 250) { lastRule_ = now; d.add(R_KT_RULE); }
+    if (i < 0 || !L.s[i][0]) {                               // pause or intro: the light travels the gap
+        if (now - lastAnim_ >= 100) { lastAnim_ = now; d.add(R_KT_PAUSE); }
+        if (now - lastNext_ >= 250) { lastNext_ = now; d.add(R_KT_NEXT); }   // next line brightening
+        return;
+    }
+    const int a = ktActive(L, i, pos_);
+    if (a != active_) {                                      // WORD mode: repaint every word that changed
+        if (active_ == -2) d.add(R_KT_BLOCK);                // first check after a line landed
+        else {
+            const int lo = active_ < a ? (active_ < 0 ? 0 : active_) : (a < 0 ? 0 : a);
+            const int hi = active_ > a ? active_ : a;
+            Rect u = wordRect(lo);
+            for (int j = lo + 1; j <= hi && j < cur_.n; j++) u = u.unite(wordRect(j));
+            d.add(u);
+        }
+        active_ = a; activeAt_ = now;
+    } else if (a >= 0 && now - activeAt_ < 200 && now - lastAnim_ >= 60) {
+        lastAnim_ = now; d.add(wordRect(a));                 // its 2 px pop settling
+    }
+}
+
+Rect LyricsScreen::wordRect(int j) const {
+    if (j < 0 || j >= cur_.n) return Rect(0, 0, 0, 0);
+    const KtTok& k = cur_.t[j];
+    const Font& f = ktFont(k.font);
+    const int16_t y0 = int16_t(KT_TOP + (KT_BOT - KT_TOP - cur_.h) / 2);
+    const int16_t w = Canvas::textWidth(cur_.buf + k.off, f) + (k.ell ? 16 : 0);
+    return Rect(int16_t(KT_TX + k.x - 3), int16_t(y0 + k.y - f.asc - 4), int16_t(w + 6), int16_t(f.asc + f.desc + 14));
+}
+
+void LyricsScreen::render(Canvas& c, const Theme& t) {
+    const SpotifyData& sp = g_state.bridge.sp;
+    const LyricsData& L = g_state.bridge.ly;
+    const uint16_t c1r = sp.c1 ? sp.c1 : t.accent2, c2r = sp.c2 ? sp.c2 : t.highlight;
+    const uint16_t c1 = ktLift(c1r, 0.50f, t.highlight), c2 = ktLift(c2r, 0.66f, t.highlight);
+    header(c, t, "Lyrics", nullptr, c2, wifiBars());
+    if (!sp.on) {
+        emptyState(c, t, iconNote, PSTR("Nothing playing"), PSTR("Lyrics show here while Spotify plays"));
+        return;
+    }
+    const bool playing = sp.playing;
+    const uint32_t p = pos_, tm = now_;
+    const uint8_t dimA = playing ? 255 : 128;
+    char b[72];
+
+    // song progress: a 1 px hairline at the bottom edge
+    {
+        const float w = 240 - 2 * M, fr = sp.durationMs ? ktClamp(float(p) / sp.durationMs) : 0;
+        c.setOpacity(180); c.fillRect(M, KT_HAIR_Y, int16_t(w), 1, t.surfaceHi); c.setOpacity(255);
+        for (int k = 0; k < 4; k++)
+            c.fillRect(int16_t(M + w * fr * k / 4), KT_HAIR_Y, int16_t(w * fr / 4 + 1), 1, mix(c1, c2, (k + 0.5f) / 4));
+        c.fillCircle(M + w * fr, KT_HAIR_Y + 0.5f, 1.8f, t.text);
+    }
+
+    // kicker: dash + song title, or a pause glyph + PAUSED
+    {
+        int16_t x = M;
+        const uint16_t kc = playing ? c2 : t.text2;
+        if (!playing) {
+            c.fillRoundRect(x, KT_KICK_Y - 8, 2.5f, 8, 1, kc); c.fillRoundRect(x + 4.5f, KT_KICK_Y - 8, 2.5f, 8, 1, kc); x += 13;
+        } else {
+            c.fillRoundRect(x, KT_KICK_Y - 4.5f, 12, 2, 1, kc); x += 18;
+        }
+        const char* kt = !playing ? "PAUSED" : L.kind == 2 ? "INSTRUMENTAL" : L.kind != 1 ? "NO SYNCED LYRICS" : sp.title;
+        char up[72];
+        strncpy(up, kt, sizeof up - 1); up[sizeof up - 1] = 0;
+        for (char* q = up; *q; q++) if (*q >= 'a' && *q <= 'z') *q -= 32;
+        Canvas::ellipsize(up, FONT_L_LABEL, int16_t(226 - x), b, sizeof b);
+        c.text(x, KT_KICK_Y, b, FONT_L_LABEL, kc, Align::Left, 2);
+    }
+
+    if (L.kind != 1) {
+        // honest fallback: the track itself becomes the poster (never invented words), rhythm bars below
+        const char* ti = sp.title;
+        const char* spc = strchr(ti, ' ');
+        int16_t y = 92;
+        if (Canvas::textWidth(ti, FONT_L_HERO) <= KT_TW || !spc) {
+            Canvas::ellipsize(ti, FONT_L_HERO, KT_TW, b, sizeof b);
+            c.textGradient(KT_TX, y, b, FONT_L_HERO, rgb(0xFFFFFF), mix(c1, rgb(0xFFFFFF), 0.4f));
+        } else {
+            char w1[40]; size_t n1 = size_t(spc - ti) < sizeof w1 - 1 ? size_t(spc - ti) : sizeof w1 - 1;
+            memcpy(w1, ti, n1); w1[n1] = 0;
+            Canvas::ellipsize(w1, FONT_L_HERO, KT_TW, b, sizeof b);
+            c.textGradient(KT_TX, y, b, FONT_L_HERO, rgb(0xFFFFFF), mix(c1, rgb(0xFFFFFF), 0.4f));
+            y += 34;
+            Canvas::ellipsize(spc + 1, FONT_L_HERO, KT_TW - 22, b, sizeof b);
+            c.textGradient(KT_TX + 22, y, b, FONT_L_HERO, c1, c2);
+        }
+        strncpy(b, sp.artist, sizeof b - 1); b[sizeof b - 1] = 0;
+        for (char* q = b; *q; q++) if (*q >= 'a' && *q <= 'z') *q -= 32;
+        char fit[72];
+        Canvas::ellipsize(b, FONT_L_LABEL, KT_TW - 22, fit, sizeof fit);
+        c.text(KT_TX + 22, int16_t(y + 22), fit, FONT_L_LABEL, t.text2, Align::Left, 2);
+        for (int i = 0; i < 23; i++) {
+            const float ph = tm / 520.f + i * 0.55f;
+            float h = 8 + 28 * (0.5f + 0.5f * sinf(ph)) * (0.6f + 0.4f * sinf(i * 0.9f + tm / 1300.f));
+            if (!playing) h = 4;
+            c.setOpacity(uint8_t(255 * (0.45f + 0.55f * h / 36)));
+            c.fillRoundRect(M + i * 9.2f, 214 - h, 4, h, 2, mix(c1, c2, i / 22.f));
+            c.setOpacity(255);
+        }
+        return;
+    }
+
+    const int i = ktLine(L, p);
+    const uint32_t t0 = i >= 0 ? L.t[i] : 0;
+    uint32_t t1 = i >= 0 ? (L.e[i] > t0 ? L.e[i] : t0 + 4000) : (L.n ? L.t[0] : 4000);
+    if (i >= 0 && !L.s[i][0] && i + 1 < L.n) t1 = L.t[i + 1];   // a pause lasts until the next line
+    const uint32_t since = tm - lineSet_;
+    const float lp = ktClamp(float(p > t0 ? p - t0 : 0) / float(t1 > t0 ? t1 - t0 : 1));
+    const float kx = ktEase(float(since) / KT_EXIT);
+
+    // the old line lifts and fades; the previous line settles into its slot above
+    if (old_.n && kx < 1) {
+        const int16_t oy0 = int16_t(KT_TOP + (KT_BOT - KT_TOP - old_.h) / 2);
+        c.setOpacity(uint8_t(230 * (1 - kx) * (1 - kx) * dimA / 255));
+        c.setClip(Rect(0, 31, 240, KT_BOT - 31));
+        for (uint8_t j = 0; j < old_.n; j++) {
+            const KtTok& k = old_.t[j];
+            c.text(int16_t(KT_TX + k.x), int16_t(oy0 + k.y - 36 * kx), old_.buf + k.off, ktFont(k.font), t.text2);
+        }
+        c.clearClip(); c.setOpacity(255);
+    }
+    const char* prevTxt = "";
+    for (int k = i - 1; k >= 0; k--) if (L.s[k][0]) { prevTxt = L.s[k]; break; }
+    ktSide(c, prevTxt, KT_PREV_Y + 6 * (1 - kx), uint8_t(107 * kx * dimA / 255), t.text3);
+
+    const char* nextTxt = "";
+    for (int k = i + 1; k < L.n; k++) if (L.s[k][0]) { nextTxt = L.s[k]; break; }
+
+    if (i >= 0 && L.s[i][0] && cur_.n) {
+        const int16_t y0 = int16_t(KT_TOP + (KT_BOT - KT_TOP - cur_.h) / 2);
+        const bool heroTop = cur_.t[0].font == 0;
+        ktRule(c, t, y0 - (heroTop ? 22 : 14), cur_.h + (heroTop ? 22 : 14) - 8, lp, c1, c2, dimA);
+        const bool word = L.nw[i] > 0 && L.nw[i] >= cur_.n;
+        const int act = word ? ktActive(L, i, p) : -1;
+        const uint16_t top = mix(c2, rgb(0xFFFFFF), 0.55f), bot = ktLift(c2, 0.74f, t.highlight);
+        for (uint8_t j = 0; j < cur_.n; j++) {
+            const KtTok& k = cur_.t[j];
+            const int32_t dd = int32_t(since) - KT_LEAD - int32_t(j * KT_STAGGER < 120 ? j * KT_STAGGER : 120);
+            const float e = ktOut(float(dd) / KT_ENTER);
+            if (e <= 0) continue;
+            const Font& f = ktFont(k.font);
+            const int16_t x = int16_t(KT_TX + k.x);
+            const float y = y0 + k.y + 14 * (1 - e);
+            const char* w = cur_.buf + k.off;
+            uint16_t col; uint8_t a;
+            if (word && int(j) == act) {
+                const float pop = playing ? 2 * (1 - ktOut((tm - activeAt_) / 160.f)) : 0;
+                c.setOpacity(uint8_t(255 * e * dimA / 255));
+                const int16_t adv = c.textGradient(x, int16_t(y - pop), w, f, top, bot);
+                if (k.ell) c.textGradient(int16_t(x + adv), int16_t(y - pop), "...", f, top, bot);
+                c.fillRoundRect(x, y + 5, adv < 18 ? adv : 18, 2.5f, 1.2f, c2);
+                c.setOpacity(255);
+                continue;
+            }
+            if (word) { col = int(j) < act ? t.text : t.text2; a = int(j) < act ? 255 : 199; }
+            else { col = t.text; a = k.big ? 255 : 209; }
+            c.setOpacity(uint8_t(a * e * dimA / 255));
+            const int16_t adv = c.text(x, int16_t(y), w, f, col);
+            if (k.ell) c.text(int16_t(x + adv), int16_t(y), "...", f, col);
+            c.setOpacity(255);
+        }
+    } else {
+        // pause in the singing (or the intro before the first line): a hairline with a point of light travelling the real gap
+        const int16_t y = (KT_TOP + KT_BOT) / 2;
+        const float x0 = KT_TX, x1 = 226, hx = x0 + (x1 - x0) * lp;
+        c.setOpacity(uint8_t(153 * dimA / 255)); c.fillRect(KT_TX, y, int16_t(x1 - x0), 1, t.surfaceHi); c.setOpacity(255);
+        c.fillRect(KT_TX, y, int16_t(hx - x0), 1, c2);
+        c.glow(hx, y + 0.5f, 6, c2, 120);
+        c.fillCircle(hx, y + 0.5f, 1.8f, rgb(0xFFFFFF));
+        c.text(KT_TX, int16_t(y - 10), "BREATHE", FONT_L_LABEL, t.text3, Align::Left, 3);
+        const uint32_t left = t1 > p ? (t1 - p + 999) / 1000 : 1;
+        snprintf_P(b, sizeof b, PSTR("BACK IN %lu"), (unsigned long)(left ? left : 1));
+        c.text(226, int16_t(y + 18), b, FONT_L_MICRO, t.text3, Align::Right, 2);
+    }
+
+    // the next line peeks in at the bottom once the words have landed
+    const float na = (i >= 0 && L.s[i][0]) ? ktEase((float(since) - 450) / 300) : 0.55f + 0.4f * lp;
+    if (nextTxt[0] && na > 0) {
+        c.setOpacity(uint8_t(255 * na * dimA / 255)); c.fillCircle(M + 1.2f, KT_NEXT_Y - 4, 1.6f, c2); c.setOpacity(255);
+        ktSide(c, nextTxt, KT_NEXT_Y, uint8_t(128 * na * dimA / 255), t.text2);
+    }
+}
+
 // ================================================================ MARKETS
 // CAIDEN OS 3 (design2/render_v3.py v3_markets): green/red wash for the day, big index value with
 // small decimals, full-bleed intraday chart, quiet rows on hairlines.

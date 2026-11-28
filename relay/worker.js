@@ -5,7 +5,7 @@
 //
 //   GET /state.json?f=..&m=..&b=1&a=24&team=India   news, markets, quote, cricket (settings come
 //                                                   from the clock: see parseSettings below)
-//   GET /sp.json                                    Spotify now playing
+//   GET /sp.json                                    Spotify now playing (&ly=1: with synced lyrics)
 //   GET /art.bin?id=<40 hex>                        album art, 120x120 RGB565 little-endian,
 //                                                   colours in the X-C1 / X-C2 headers
 //   GET /spotify/login?key=<ADMIN_KEY>              one-time Spotify sign-in (in your browser)
@@ -431,7 +431,143 @@ async function accessToken(env, force) {
   return (await saveToken(env, await r.json())).access_token;
 }
 
-async function nowPlaying(env) {
+// ---------------------------------------------------------------- synced lyrics (LRCLIB)
+// lrclib.net is a free, open lyrics database with time-synced (LRC) lyrics and no API key. Each track's
+// lyrics are looked up once and kept in KV for 30 days (a miss for 1 day). The clock gets only a small
+// window of lines around the playing position with each /sp.json, never the whole song.
+const LY_MEM = new Map();
+function parseLrc(t) {
+  const lines = [];
+  for (const row of String(t || "").split(/\r?\n/)) {
+    // one row can carry several times ("[00:12.00][00:45.00]chorus"): one line per time
+    const m = row.match(/^((?:\[\d+:\d+(?:\.\d+)?\])+)\s*(.*)$/);
+    if (!m) continue;
+    const text = fold(m[2], 64);
+    for (const ts of m[1].matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g))
+      lines.push([Math.round((+ts[1] * 60 + +ts[2]) * 1000), text]);
+  }
+  return lines.sort((a, b) => a[0] - b[0]);
+}
+// LRCLIB's "lyricsfile" (YAML) has each line's start and end and, for many songs, each word's start.
+// Only the fields we need are read: lines[].text/start_ms/end_ms and lines[].words[].text/start_ms.
+function yamlStr(v) {
+  v = v.trim();
+  if (v.startsWith("'") && v.endsWith("'")) return v.slice(1, -1).replace(/''/g, "'");
+  if (v.startsWith('"') && v.endsWith('"')) { try { return JSON.parse(v); } catch (e) { return v.slice(1, -1); } }
+  return v;
+}
+function parseLyricsfile(y) {
+  const lines = [];
+  let inLines = false, line = null, word = null;
+  for (const row of String(y || "").split(/\r?\n/)) {
+    if (/^lines:\s*$/.test(row)) { inLines = true; continue; }
+    if (!inLines) continue;
+    if (/^\S/.test(row) && !row.startsWith("- ")) break;      // next top-level key
+    let m;
+    if ((m = row.match(/^- text:(.*)$/))) { line = { text: yamlStr(m[1]), s: 0, e: 0, w: [] }; lines.push(line); word = null; }
+    else if (line && (m = row.match(/^  (start_ms|end_ms):\s*(\d+)/))) line[m[1] === "start_ms" ? "s" : "e"] = +m[2];
+    else if (line && (m = row.match(/^  - text:(.*)$/))) { word = { t: yamlStr(m[1]), s: -1 }; line.w.push(word); }
+    else if (word && (m = row.match(/^    start_ms:\s*(\d+)/))) word.s = +m[1];
+  }
+  return lines;
+}
+// Map provider word timings onto the clock's words (the line split at spaces). Returns each word's start
+// as ms after the line start, or null if they can't be matched exactly (the clock then shows the line
+// without word highlighting: never guessed timing).
+function wordOffsets(text, line) {
+  const toks = text.split(" ").filter(Boolean);
+  if (!line.w.length || toks.length > 16) return null;
+  const key = (s) => fold(s, 200).toLowerCase().replace(/[^a-z0-9]/g, "");
+  let wi = 0, buf = "";
+  const out = [];
+  for (const tk of toks) {
+    const want = key(tk);
+    if (!want) { out.push(out.length ? out[out.length - 1] : 0); continue; }
+    if (wi >= line.w.length) return null;
+    const st = line.w[wi].s;
+    buf = "";
+    while (wi < line.w.length && buf.length < want.length) buf += key(line.w[wi++].t);
+    if (buf !== want || st < 0) return null;
+    out.push(Math.max(0, st - line.s));
+  }
+  return out;
+}
+// Lines for the clock: [start, text, end] or [start, text, end, [word offsets]].
+function linesFrom(c) {
+  const lrc = parseLrc(c.syncedLyrics);
+  const lf = c.lyricsfile ? parseLyricsfile(c.lyricsfile) : [];
+  if (lf.length) {
+    const out = [];
+    for (let i = 0; i < lf.length; i++) {
+      const L = lf[i], text = fold(L.text, 64);
+      const end = L.e || (lf[i + 1] ? lf[i + 1].s : L.s + 4000);
+      if (i && out.length && lf[i - 1].e && L.s - lf[i - 1].e > 4000) out.push([lf[i - 1].e, "", L.s]);   // a gap: a pause line
+      const w = c.hasWordSync ? wordOffsets(text, L) : null;
+      out.push(w ? [L.s, text, end, w] : [L.s, text, end]);
+    }
+    if (out.length >= 3) return out;
+  }
+  return lrc.map((l, i) => [l[0], l[1], i + 1 < lrc.length ? lrc[i + 1][0] : l[0] + 4000]);
+}
+// Synced lyrics mostly in Latin letters (the clock's fonts are ASCII).
+function latinLrc(c) {
+  const t = String((c && c.syncedLyrics) || "").replace(/\[[^\]]*\]/g, "").replace(/[\s\d\p{P}]/gu, "");
+  if (t.length < 20) return false;
+  const latin = (t.match(/[\p{Script=Latin}]/gu) || []).length;
+  return latin / t.length > 0.85;
+}
+async function lyricsFor(env, trackId, title, artist, album, durMs) {
+  if (!trackId) return null;
+  if (LY_MEM.has(trackId)) return LY_MEM.get(trackId);
+  const key = "ly2:" + trackId;   // ly2: lines with end times and word timings
+  let v = env.CAIDEN ? await env.CAIDEN.get(key, "json") : null;
+  if (!v) {
+    // k: 0 none, 1 synced, 2 instrumental, 3 lyrics without timing, 4 only in a script the clock can't show
+    v = { k: 0 };
+    try {
+      const H = { headers: { "User-Agent": "CAIDEN-OS relay (open-source clock firmware)" }, signal: AbortSignal.timeout(4000) };
+      const q = new URLSearchParams({ track_name: title, artist_name: artist, album_name: album || "",
+        duration: String(Math.round(durMs / 1000)) });
+      const r = await fetch("https://lrclib.net/api/get?" + q, H);
+      if (!r.ok && r.status !== 404) throw new Error("lrclib " + r.status);
+      const cands = r.ok ? [await r.json()] : [];
+      // no exact match, or one in a non-Latin script: other uploads of the same song often have a
+      // romanised version (common for Hindi songs)
+      if (!cands.length || !latinLrc(cands[0])) {
+        const r2 = await fetch("https://lrclib.net/api/search?" + new URLSearchParams({ track_name: title, artist_name: artist }), H);
+        if (r2.ok) for (const c of (await r2.json()).slice(0, 12))
+          if (Math.abs((+c.duration || 0) - durMs / 1000) <= 4) cands.push(c);
+      }
+      const latin = cands.filter(latinLrc);
+      const best = latin.find((c) => c.hasWordSync && c.lyricsfile) || latin[0];   // word timing preferred
+      if (best) v = { k: 1, l: linesFrom(best) };
+      else if (cands.some((c) => c.instrumental)) v = { k: 2 };
+      else if (cands.some((c) => c.syncedLyrics)) v = { k: 4 };
+      else if (cands.some((c) => c.plainLyrics)) v = { k: 3 };
+      if (env.CAIDEN) await env.CAIDEN.put(key, JSON.stringify(v), { expirationTtl: v.k ? 30 * 86400 : 86400 });
+    } catch (e) { return { k: 0 }; }   // network trouble: try again with the next poll
+  }
+  LY_MEM.set(trackId, v);
+  if (LY_MEM.size > 40) LY_MEM.delete(LY_MEM.keys().next().value);
+  return v;
+}
+
+// The lines around position p: the one before the current line, the current line and the next ones
+// (the line before, the current one and the next ones up to 8 s ahead: 6 lines at most; the clock polls
+// every 2 s while the page is on screen). Each line is [start ms, text, end ms] plus, when the
+// song has word timing, [each word's start, ms after the line start]; "" is a pause.
+function lyricsWindow(v, p) {
+  if (!v || v.k !== 1) return { lk: v ? v.k : 0 };
+  const L = v.l;
+  let i = -1;
+  while (i + 1 < L.length && L[i + 1][0] <= p) i++;
+  const from = Math.max(0, i - 1);
+  let to = Math.max(i + 1, from + 1);
+  while (to < L.length && to - from < 6 && (to <= i + 2 || L[to][0] <= p + 8000)) to++;
+  return { lk: 1, ln: L.length, l0: from, ly: L.slice(from, to) };
+}
+
+async function nowPlaying(env, withLyrics) {
   if (!env.CAIDEN || !env.SPOTIFY_CLIENT_ID) return { on: false, x: 1 };   // x: Spotify not set up
   let j = null;
   for (const force of [false, true]) {
@@ -452,8 +588,14 @@ async function nowPlaying(env) {
   const images = (episode ? it.images : (it.album || {}).images) || [];
   const img = [...images].sort((a, b) => (a.width || 0) - (b.width || 0)).find((m) => (m.width || 0) >= ART) || images[0];
   const id = ((img && img.url) || "").match(/i\.scdn\.co\/image\/([0-9a-f]{40})$/);
-  return { on: true, pl: !!j.is_playing, ti: fold(it.name, 60) || "Now playing", ar: fold(artist, 60),
+  const out = { on: true, pl: !!j.is_playing, ti: fold(it.name, 60) || "Now playing", ar: fold(artist, 60),
     p: +j.progress_ms || 0, d: +it.duration_ms || 0, id: id ? id[1] : "" };
+  if (withLyrics) {
+    const v = episode ? { k: 0 } : await lyricsFor(env, it.id, it.name, (it.artists || []).map((a) => a.name)[0] || "",
+      (it.album || {}).name, +it.duration_ms || 0);
+    Object.assign(out, lyricsWindow(v, out.p));
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- album art -> RGB565
@@ -645,7 +787,7 @@ export default {
           if (!c) return json({ seen: false });
           return json({ ...c, age: Math.floor(Date.now() / 1000) - c.at });
         }
-        case "/sp.json": return json(await nowPlaying(env));
+        case "/sp.json": return json(await nowPlaying(env, url.searchParams.get("ly") === "1"));
         case "/art.bin": {
           const id = url.searchParams.get("id") || "";
           if (!/^[0-9a-f]{40}$/.test(id)) return new Response("bad id\n", { status: 400 });

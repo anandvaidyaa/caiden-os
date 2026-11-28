@@ -12,6 +12,18 @@ struct SpotifyData {
     uint16_t c1 = 0, c2 = 0;                             // dominant artwork colours (RGB565)
 };
 
+// Synced lyrics: a small window of lines around the playing position, refreshed with each Spotify poll
+// (the relay looks them up on lrclib.net). kind: 0 none, 1 synced, 2 instrumental, 3 no timing,
+// 4 only in a script the clock's fonts can't show. Word starts exist only when the provider has them.
+struct LyricsData {
+    uint8_t  kind = 0, n = 0;
+    uint16_t first = 0, total = 0;                       // index of t[0] in the song, lines in the song
+    uint32_t t[6] = {0}, e[6] = {0};                     // start and end of each line, ms into the song
+    uint8_t  nw[6] = {0};                                // words with timing (0 = line timing only)
+    uint16_t w[6][16] = {{0}};                           // each word's start, ms after the line start
+    char     s[6][64] = {{0}};                           // "" = a pause in the singing
+};
+
 struct MarketRow {
     char    name[14] = "", value[16] = "", prev[16] = "";
     float   change = 0, delta = 0;
@@ -69,6 +81,7 @@ struct BridgeData {
     char      fwMd5[33] = "";
     char      hash[12] = "";     // bridge content hash: version bumps only when it changes
     SpotifyData sp;
+    LyricsData ly;
     uint8_t   markets = 0;  MarketRow mk[5];
     uint8_t   news = 0;     NewsItem nw[8];
     uint8_t   events = 0;   CalEvent ca[3];

@@ -353,7 +353,26 @@ static void ktLayout(const char* text, KtLayout& p) {
             for (char* q = p.buf + last.off + strlen(p.buf + last.off); q > p.buf + last.off + 1 && (q[-1] == ',' || q[-1] == '.'); ) *--q = 0;
         }
         p.n = kept; p.h = int16_t(y + 8);
-        if (p.h <= KT_BOT - KT_TOP || tier == 2) return;
+        // every row must fit across too: one long word ("na-na-na-na-na"), the "..." added above, or
+        // small words carried down to a row can make it wider than the column
+        int over = -1;
+        for (uint8_t k = 0; k < kept && over < 0; k++) {
+            const Font& f = ktFont(p.t[k].font);
+            const int16_t w = Canvas::textWidth(p.buf + p.t[k].off, f) + (p.t[k].ell ? Canvas::textWidth("...", f) : 0);
+            if (p.t[k].x + w > KT_TW) over = k;
+        }
+        if (over < 0 && (p.h <= KT_BOT - KT_TOP || tier == 2)) return;
+        if (tier < 2) continue;                              // try the next, smaller set of fonts
+        // smallest fonts and still too wide: shorten that word to fit with "..." and end the line there
+        KtTok& o = p.t[over];
+        const Font& f = ktFont(o.font);
+        char* w = p.buf + o.off;
+        size_t len = strlen(w);
+        const int16_t dots = Canvas::textWidth("...", f);
+        while (len > 1 && o.x + Canvas::textWidth(w, f) + dots > KT_TW) w[--len] = 0;
+        o.ell = true;
+        p.n = uint8_t(over + 1);
+        return;
     }
 }
 

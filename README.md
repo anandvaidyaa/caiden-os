@@ -31,7 +31,7 @@ and updated over the air from anywhere.
 
 ## What's new
 
-The latest firmware is **1.1.2**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
+The latest firmware is **1.1.3**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
 Lyrics also need the updated relay (`relay/worker.js`): redeploy it with `npx wrangler deploy` in `relay/`.
 
 ### Lyrics page: "Kinetic Poster" (new in 1.1.0)
@@ -155,6 +155,7 @@ title, which gets shortened with "…" if it doesn't fit. Nothing overlaps.
 
 | Version | Change |
 |---|---|
+| 1.1.3 | Lyrics never run past the right edge: rows are measured, too-wide lines step down a font size, and a word still too long ends with "..." |
 | 1.1.2 | While a song plays, Spotify stays 3 rotation steps and Lyrics stays until the song ends (5 minutes at most) |
 | 1.1.1 | Fixed a crash when the Lyrics page laid out a line (a flash string read the wrong way) |
 | 1.1.0 | Lyrics redesigned as the "Kinetic Poster": real word-by-word timing where the provider has it, poster typography, new Outfit 28 hero font; relay sends word timings |

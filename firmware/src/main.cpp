@@ -181,6 +181,17 @@ static void choosePage(uint32_t now) {
         if (!inRotation) { rotIdx = 0; rotSince = now; want = PAGES[0]; tr = Transition::Fade; }
         else if (rot > 0) {
             uint32_t dwell = uint32_t(rot) * 1000UL * (rotIdx == 0 ? 2 : 1);
+            // music pages stay longer while a song plays: Spotify 3 rotation steps; Lyrics until the
+            // song ends (at least 3 steps, at most 5 minutes from when it appeared)
+            if (PAGES[rotIdx] == &spotifyScreen) dwell = uint32_t(rot) * 3000UL;
+            if (PAGES[rotIdx] == &lyricsScreen) {
+                const SpotifyData& sp = g_state.bridge.sp;
+                const uint32_t pos = sp.progressMs + (sp.playing ? now - sp.atMs : 0);
+                const uint32_t left = sp.durationMs > pos ? sp.durationMs - pos : 0;
+                uint32_t until = left + (now - rotSince) + 1500;          // + a moment after the last note
+                const uint32_t lo = uint32_t(rot) * 3000UL, hi = 300000UL;
+                dwell = until < lo ? lo : until > hi ? hi : until;
+            }
             bool gone = !pageAvailable(rotIdx);                 // e.g. music stopped
             if (gone || int32_t(now - rotSince) >= int32_t(dwell)) {
                 do { rotIdx = uint8_t((rotIdx + 1) % PAGE_COUNT); } while (!pageAvailable(rotIdx));

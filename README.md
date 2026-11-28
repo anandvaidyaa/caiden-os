@@ -31,7 +31,7 @@ and updated over the air from anywhere.
 
 ## What's new
 
-The latest firmware is **1.1.0**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
+The latest firmware is **1.1.2**. Clocks on 0.7.8 or newer update over the air from the System tab; older ones need one USB flash.
 Lyrics also need the updated relay (`relay/worker.js`): redeploy it with `npx wrangler deploy` in `relay/`.
 
 ### Lyrics page: "Kinetic Poster" (new in 1.1.0)
@@ -155,6 +155,8 @@ title, which gets shortened with "…" if it doesn't fit. Nothing overlaps.
 
 | Version | Change |
 |---|---|
+| 1.1.2 | While a song plays, Spotify stays 3 rotation steps and Lyrics stays until the song ends (5 minutes at most) |
+| 1.1.1 | Fixed a crash when the Lyrics page laid out a line (a flash string read the wrong way) |
 | 1.1.0 | Lyrics redesigned as the "Kinetic Poster": real word-by-word timing where the provider has it, poster typography, new Outfit 28 hero font; relay sends word timings |
 | 1.0.0 | First Lyrics page: synced lyrics from LRCLIB through the relay, romanised fallback for non-Latin scripts |
 | 0.9.9 | Spotify page shows only while music is playing |
@@ -337,7 +339,8 @@ Turn it off under **Pages** on the settings page.
 
 ### When it shows
 
-- **In the rotation:** only while a song with synced lyrics is playing.
+- **In the rotation:** only while a song with synced lyrics is playing. It then stays until the song ends
+  (at least 3 rotation steps, at most 5 minutes), and the Spotify page stays 3 rotation steps.
 - **Opened by hand** (Home tab, or `/api/page?name=lyrics`): it also explains the other cases. These are
   "Instrumental", "No synced lyrics" and "Lyrics in another script".
 
@@ -346,8 +349,9 @@ Turn it off under **Pages** on the settings page.
 1. **Look-up:** when a new song starts, your relay looks it up once on [LRCLIB](https://lrclib.net), a free,
    open lyrics database. The look-up uses the title, artist, album and length. The result is kept in your
    relay's storage for 30 days (a miss for a day), so each song is fetched only once.
-2. **Choosing a version:** the relay prefers a version with **word timing** (LRCLIB's `lyricsfile`). Otherwise it
-   uses line timing (LRC).
+2. **Choosing a version:** the relay prefers an **uncensored** upload: some uploaders star out words ("f***"), and
+   the clock shows lyrics as written. Among those, it prefers one with **word timing** (LRCLIB's `lyricsfile`);
+   otherwise it uses line timing (LRC).
 3. **Non-Latin scripts:** if the best version is in a script the clock's A–Z fonts can't show, for example
    Devanagari, the relay looks for a romanised upload of the same song (same length within 4 s). Many Hindi songs
    have one.

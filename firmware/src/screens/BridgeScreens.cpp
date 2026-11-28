@@ -239,7 +239,12 @@ static bool ktStop(const char* w) {
     }
     if (n == 1) return false;
     b[n++] = ' '; b[n] = 0;
-    return strstr_P(KT_STOP, b) == nullptr ? false : true;
+    // KT_STOP is in flash: compare against it with the _P functions only (strstr_P wants its *needle* in
+    // flash; giving it a flash haystack made 1.1.0 crash as soon as the page laid out a line)
+    const size_t bl = strlen(b);
+    for (PGM_P q = KT_STOP; pgm_read_byte(q); q++)
+        if (pgm_read_byte(q) == ' ' && strncmp_P(b, q, bl) == 0) return true;
+    return false;
 }
 
 // Album colour made readable on the theme: dull colours borrow half the highlight, then mix toward white

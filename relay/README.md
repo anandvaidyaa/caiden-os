@@ -77,7 +77,8 @@ Sign-in uses PKCE, so no Spotify client secret is needed. The sign-in is kept in
 With Spotify set up, lyrics work by themselves. When the clock asks `/sp.json?ly=1` (only while its Lyrics
 page is on), the relay:
 - looks the song up once on [LRCLIB](https://lrclib.net), a free and open lyrics database (no key);
-- keeps the result in KV for 30 days (`ly2:<track id>`);
+- prefers an uncensored upload (no starred-out words), then one with word timing;
+- keeps the result in KV for 30 days (`ly3:<track id>`);
 - sends a small window of lines: the line before, the current line and the lines up to 8 s ahead.
 
 Fields:

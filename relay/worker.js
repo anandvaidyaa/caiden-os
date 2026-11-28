@@ -516,10 +516,15 @@ function latinLrc(c) {
   const latin = (t.match(/[\p{Script=Latin}]/gu) || []).length;
   return latin / t.length > 0.85;
 }
+// Words starred out by the uploader ("f***", "s**t", "****").
+function censored(c) {
+  const t = String((c && c.syncedLyrics) || "") + "\n" + String((c && c.lyricsfile) || "");
+  return /[A-Za-z]\*+|\*+[A-Za-z]|\*{3,}/.test(t);
+}
 async function lyricsFor(env, trackId, title, artist, album, durMs) {
   if (!trackId) return null;
   if (LY_MEM.has(trackId)) return LY_MEM.get(trackId);
-  const key = "ly2:" + trackId;   // ly2: lines with end times and word timings
+  const key = "ly3:" + trackId;   // ly3: uncensored uploads preferred (ly2 could hold starred-out words)
   let v = env.CAIDEN ? await env.CAIDEN.get(key, "json") : null;
   if (!v) {
     // k: 0 none, 1 synced, 2 instrumental, 3 lyrics without timing, 4 only in a script the clock can't show
@@ -531,15 +536,18 @@ async function lyricsFor(env, trackId, title, artist, album, durMs) {
       const r = await fetch("https://lrclib.net/api/get?" + q, H);
       if (!r.ok && r.status !== 404) throw new Error("lrclib " + r.status);
       const cands = r.ok ? [await r.json()] : [];
-      // no exact match, or one in a non-Latin script: other uploads of the same song often have a
-      // romanised version (common for Hindi songs)
-      if (!cands.length || !latinLrc(cands[0])) {
+      // no exact match, one in a non-Latin script, or one with words starred out: other uploads of the
+      // same song often have a romanised (common for Hindi songs) or uncensored version
+      if (!cands.length || !latinLrc(cands[0]) || censored(cands[0])) {
         const r2 = await fetch("https://lrclib.net/api/search?" + new URLSearchParams({ track_name: title, artist_name: artist }), H);
-        if (r2.ok) for (const c of (await r2.json()).slice(0, 12))
+        if (r2.ok) for (const c of (await r2.json()).slice(0, 20))
           if (Math.abs((+c.duration || 0) - durMs / 1000) <= 4) cands.push(c);
       }
+      // the words as written: uncensored first, then word timing
       const latin = cands.filter(latinLrc);
-      const best = latin.find((c) => c.hasWordSync && c.lyricsfile) || latin[0];   // word timing preferred
+      const clean = latin.filter((c) => !censored(c));
+      const pool = clean.length ? clean : latin;
+      const best = pool.find((c) => c.hasWordSync && c.lyricsfile) || pool[0];
       if (best) v = { k: 1, l: linesFrom(best) };
       else if (cands.some((c) => c.instrumental)) v = { k: 2 };
       else if (cands.some((c) => c.syncedLyrics)) v = { k: 4 };
